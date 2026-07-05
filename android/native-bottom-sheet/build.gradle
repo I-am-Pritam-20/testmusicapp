@@ -1,0 +1,27 @@
+apply plugin: "com.android.library"
+apply plugin: "org.jetbrains.kotlin.android"
+
+android {
+    namespace "com.musickit.bottomsheet"
+    compileSdk rootProject.ext.compileSdkVersion
+
+    defaultConfig {
+        minSdk rootProject.ext.minSdkVersion
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // Only the ViewManager/Package classes touch RN; NativeBottomSheetView
+    // itself (the actual drag/animate logic) has zero RN imports and could
+    // be lifted into a plain Android app with no changes.
+    compileOnly("com.facebook.react:react-android")
+}

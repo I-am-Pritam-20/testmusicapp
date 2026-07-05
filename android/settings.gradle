@@ -3,4 +3,6 @@ plugins { id("com.facebook.react.settings") }
 extensions.configure(com.facebook.react.ReactSettingsExtension){ ex -> ex.autolinkLibrariesFromCommand() }
 rootProject.name = 'testmusicapp'
 include ':app'
+include ':media-core'
+include ':native-bottom-sheet'
 includeBuild('../node_modules/@react-native/gradle-plugin')

@@ -36,6 +36,14 @@
     "typescript": "^5.8.3"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
+  },
+  "codegenConfig": {
+    "name": "NativeMusicPlayerSpecs",
+    "type": "all",
+    "jsSrcsDir": "src/native-kit/specs",
+    "android": {
+      "javaPackageName": "com.nativemusicplayer.generated"
+    }
   }
 }
