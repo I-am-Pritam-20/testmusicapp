@@ -109,14 +109,14 @@ android {
             keyPassword keystoreProperties['keyPassword']
         }
     }
-        buildTypes {
+            buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            signingConfig signingConfigs.release
-            minifyEnabled true
-            shrinkResources true
+            // Unsigned — debug keystore, personal use only, NOT Play Store
+            signingConfig signingConfigs.debug
+            minifyEnabled false
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
     }
