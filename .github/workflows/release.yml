@@ -1,0 +1,212 @@
+name: Release Build (APK + AAB)
+
+# ── Manual trigger ONLY — triggered by: rnx release 1.0.0 ────────────────────
+# Signing is auto-detected:
+#   RELEASE_KEYSTORE_BASE64 secret exists → signed release (latest)
+#   Secret missing/empty                  → unsigned release (pre-release tag)
+on:
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: 'Version name (e.g. 1.0.0)'
+        required: true
+      version_code:
+        description: 'Version code (integer, auto-set by rnx release)'
+        required: true
+
+# ── Permissions to create GitHub Releases ────────────────────────────────────
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build-release:
+    name: Release Build v${{ github.event.inputs.version_name }}
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout main ─────────────────────────────────────────────────────
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      # ── 2. Setup Java 17 ─────────────────────────────────────────────────────
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      # ── 3. Setup Node 20 ─────────────────────────────────────────────────────
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # ── 4. Install JS dependencies ───────────────────────────────────────────
+      - name: Install npm dependencies
+        run: npm ci
+
+      # ── 5. Detect signing + setup keystore ───────────────────────────────────
+      # Auto-detects based on RELEASE_KEYSTORE_BASE64 secret presence.
+      # No 'signed' input — avoids GitHub API "unexpected inputs" 422 error.
+      - name: Setup signing
+        id: signing
+        run: |
+          if [ -n "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" ]; then
+            echo "SIGNED=true" >> $GITHUB_ENV
+
+            KEYSTORE_PATH="${{ github.workspace }}/android/app/release.keystore"
+            echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 --decode > "$KEYSTORE_PATH"
+
+            if [ ! -s "$KEYSTORE_PATH" ]; then
+              echo "Keystore decoded but empty — check RELEASE_KEYSTORE_BASE64 secret"
+              exit 1
+            fi
+            echo "Keystore size: $(wc -c < $KEYSTORE_PATH) bytes"
+
+            # Write keystore.properties — NO leading whitespace, Gradle is strict
+            printf 'storeFile=../app/release.keystore\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+              "${{ secrets.RELEASE_STORE_PASSWORD }}" \
+              "${{ secrets.RELEASE_KEY_ALIAS }}" \
+              "${{ secrets.RELEASE_KEY_PASSWORD }}" \
+              > "${{ github.workspace }}/android/keystore.properties"
+
+            echo "Signed build — keystore ready"
+          else
+            echo "SIGNED=false" >> $GITHUB_ENV
+            echo "Unsigned build — RELEASE_KEYSTORE_BASE64 not set"
+          fi
+
+      # ── 6. Make gradlew executable ───────────────────────────────────────────
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      # ── 7. Inject version ────────────────────────────────────────────────────
+      - name: Inject version
+        run: |
+          sed -i "s/versionCode .*/versionCode ${{ github.event.inputs.version_code }}/" android/app/build.gradle
+          sed -i "s/versionName .*/versionName \"${{ github.event.inputs.version_name }}\"/" android/app/build.gradle
+          echo "Injected: ${{ github.event.inputs.version_name }} (${{ github.event.inputs.version_code }})"
+
+      # ── 8. Build Release APK ─────────────────────────────────────────────────
+      # Signed:   build.gradle reads keystore.properties → signingConfigs.release
+      # Unsigned: keystore.properties absent → signingConfigs.debug fallback
+      - name: Build Release APK
+        run: |
+          cd android
+          ./gradlew assembleRelease \
+            --no-daemon \
+            --warning-mode=none \
+            -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m"
+
+      # ── 9. Build AAB (signed only) ────────────────────────────────────────────
+      - name: Build Release AAB
+        if: env.SIGNED == 'true'
+        run: |
+          cd android
+          ./gradlew bundleRelease \
+            --no-daemon \
+            --warning-mode=none \
+            -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m"
+
+      # ── 10. Rename artifacts ─────────────────────────────────────────────────
+      - name: Rename artifacts
+        run: |
+          VERSION="${{ github.event.inputs.version_name }}"
+          BUILD="${{ github.event.inputs.version_code }}"
+          DATE=$(date +'%Y%m%d')
+          TAG=$( [ "$SIGNED" = "true" ] && echo "signed" || echo "unsigned" )
+
+          APK_NAME="release-v${VERSION}-build${BUILD}-${TAG}-${DATE}.apk"
+          echo "APK_NAME=${APK_NAME}" >> $GITHUB_ENV
+          mv android/app/build/outputs/apk/release/app-release.apk \
+             android/app/build/outputs/apk/release/${APK_NAME}
+          echo "APK: ${APK_NAME}"
+
+          if [ "$SIGNED" = "true" ]; then
+            AAB_NAME="release-v${VERSION}-build${BUILD}-signed-${DATE}.aab"
+            echo "AAB_NAME=${AAB_NAME}" >> $GITHUB_ENV
+            mv android/app/build/outputs/bundle/release/app-release.aab \
+               android/app/build/outputs/bundle/release/${AAB_NAME}
+            echo "AAB: ${AAB_NAME}"
+          fi
+
+      # ── 11. GitHub Release — Signed (latest, permanent) ──────────────────────
+      - name: Create GitHub Release (Signed)
+        if: env.SIGNED == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.event.inputs.version_name }}
+          name: Release v${{ github.event.inputs.version_name }}
+          body: |
+            ## Release v${{ github.event.inputs.version_name }} ✅
+
+            **Build:** ${{ github.event.inputs.version_code }}
+            **Commit:** `${{ github.sha }}`
+            **Type:** Signed — production / Play Store ready
+
+            ### Downloads
+            - **APK** — install on any Android device
+            - **AAB** — Android App Bundle for Play Store
+          files: |
+            android/app/build/outputs/apk/release/${{ env.APK_NAME }}
+            android/app/build/outputs/bundle/release/${{ env.AAB_NAME }}
+          draft: false
+          prerelease: false
+          make_latest: true
+
+      # ── 11b. GitHub Release — Unsigned (pre-release, permanent) ──────────────
+      - name: Create GitHub Release (Unsigned)
+        if: env.SIGNED == 'false'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.event.inputs.version_name }}-unsigned
+          name: Release v${{ github.event.inputs.version_name }} (Unsigned)
+          body: |
+            ## Release v${{ github.event.inputs.version_name }} ⚠️ Unsigned
+
+            **Build:** ${{ github.event.inputs.version_code }}
+            **Commit:** `${{ github.sha }}`
+            **Type:** Unsigned — personal use only, NOT for Play Store
+
+            > Add keystore secrets to this repo for signed production releases.
+            > Run `rnx release` and choose the signed option for instructions.
+
+            ### Downloads
+            - **APK** — personal / internal use only
+          files: |
+            android/app/build/outputs/apk/release/${{ env.APK_NAME }}
+          draft: false
+          prerelease: true
+          make_latest: false
+
+      # ── 12. Clean everything ─────────────────────────────────────────────────
+      - name: Clean caches and sensitive files
+        if: always()
+        run: |
+          cd android && ./gradlew clean --no-daemon 2>/dev/null || true
+          rm -rf ~/.gradle/caches ~/.gradle/wrapper
+          rm -rf android/.gradle android/app/build android/app/bundle
+          rm -f  android/app/release.keystore android/keystore.properties
+          rm -rf node_modules
+          echo "All caches, build outputs, and sensitive files cleaned"
+
+      # ── 13. Summary ──────────────────────────────────────────────────────────
+      - name: Build summary
+        if: success()
+        run: |
+          echo "### Release v${{ github.event.inputs.version_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| APK | \`${{ env.APK_NAME }}\` |" >> $GITHUB_STEP_SUMMARY
+          if [ "$SIGNED" = "true" ]; then
+            echo "| AAB | \`${{ env.AAB_NAME }}\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| Type | Signed ✅ |" >> $GITHUB_STEP_SUMMARY
+            echo "| Release | Latest ✅ |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Type | Unsigned ⚠️ |" >> $GITHUB_STEP_SUMMARY
+            echo "| Release | Pre-release ⚠️ |" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "| Build code | \`${{ github.event.inputs.version_code }}\` |" >> $GITHUB_STEP_SUMMARY

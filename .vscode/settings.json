@@ -1,0 +1,29 @@
+{
+  "java.import.exclusions": [
+    "**/android/**",
+    "**/ios/**",
+    "**/node_modules/**",
+    "**/.gradle/**",
+    "**/build/**"
+  ],
+  "java.autobuild.enabled": false,
+  "java.compile.nullAnalysis.mode": "disabled",
+  "gradle.nestedProjects": false,
+  "gradle.autoDetect": "off",
+  "files.watcherExclude": {
+    "**/android/.gradle/**": true,
+    "**/android/build/**": true,
+    "**/android/app/build/**": true,
+    "**/.gradle/**": true,
+    "**/node_modules/**": true
+  },
+  "files.exclude": {
+    "**/android/.gradle": true,
+    "**/android/build": true
+  },
+  "search.exclude": {
+    "**/android/.gradle/**": true,
+    "**/android/build/**": true,
+    "**/node_modules/**": true
+  }
+}
