@@ -27,6 +27,7 @@ const sampleQueue: TrackPayload[] = [
     sourceType: 'local',
     title: 'Tum Ho Toh (From Saiyaara)',
     artist: 'Vishal Mishra',
+    artworkUrl: 'https://c.saavncdn.com/598/Saiyaara-Hindi-2025-20250703061754-500x500.jpg'
   },
 ];
 
@@ -56,7 +57,7 @@ export default function PlayerScreen(): React.JSX.Element {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       {/* The rest of your app's screens render behind the sheet here. */}
 
       <NativeBottomSheet
@@ -120,7 +121,7 @@ export default function PlayerScreen(): React.JSX.Element {
           </Animated.View>
         </View>
       </NativeBottomSheet>
-    </SafeAreaView>
+    </View>
   );
 }
 

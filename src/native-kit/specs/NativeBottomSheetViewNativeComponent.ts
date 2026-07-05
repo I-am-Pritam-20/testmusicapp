@@ -15,7 +15,7 @@
  * comment if you ever need old-architecture (bridge) support too.
  */
 import type {HostComponent, ViewProps} from 'react-native';
-import type {DirectEventHandler, Int32, WithDefault} from 'react-native/Libraries/Types/CodegenTypes';
+import type {DirectEventHandler, Double, Int32, WithDefault} from 'react-native/Libraries/Types/CodegenTypes';
 import codegenNativeComponent from 'react-native/Libraries/Utilities/codegenNativeComponent';
 
 export type SheetState = 'collapsed' | 'expanded' | 'hidden' | 'dragging';
@@ -25,7 +25,7 @@ export interface SheetStateChangeEvent {
 }
 
 export interface SheetSlideEvent {
-  progress: number; // 0 = fully collapsed, 1 = fully expanded
+  progress: Double; // 0 = fully collapsed, 1 = fully expanded
 }
 
 export interface NativeProps extends ViewProps {
