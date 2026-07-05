@@ -21,23 +21,6 @@ import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.facebook.react.turbomodule.core.interfaces.TurboModule
 import com.google.common.util.concurrent.MoreExecutors
 
-/**
- * Implemented as a plain ReactContextBaseJavaModule + TurboModule marker
- * (rather than extending a codegen-generated Spec base class) so this
- * module — and the :media-core Gradle module it lives in — has zero
- * build-time dependency on any particular app's codegen output. Drop this
- * module into another RN project and it works as-is; the New Architecture
- * interop layer resolves plain TurboModule-marked native modules via
- * TurboModuleRegistry the same as codegen'd ones, at the cost of losing
- * compile-time signature checking against src/native-kit/specs/*.ts on
- * Android. If you later extract this into its own versioned npm package,
- * switching to a generated Spec base class is a straightforward change.
- *
- * Binds a MediaController to PlaybackService's MediaSession and forwards
- * standard Player-interface calls to it — Media3's MediaController already
- * implements Player, so queue/transport/mode commands don't need any
- * custom IPC of our own.
- */
 class NativeMusicPlayerModule(reactContext: ReactApplicationContext) :
     ReactContextBaseJavaModule(reactContext), TurboModule {
 
