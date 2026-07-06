@@ -58,7 +58,11 @@ class NativeMusicPlayerModule(reactContext: ReactApplicationContext) :
 
   @ReactMethod
   fun setQueue(tracks: ReadableArray, startIndex: Double) {
-    val trackList = (0 until tracks.size()).map { MediaItemFactory.trackFromMap(tracks.getMap(it)) }
+    val trackList =
+        (0 until tracks.size()).map { index ->
+          val map = tracks.getMap(index) ?: error("Track at index $index in setQueue is null")
+          MediaItemFactory.trackFromMap(map)
+        }
     trackList.forEach { tracksById[it.id] = it }
     val mediaItems = trackList.map { MediaItemFactory.toMediaItem(it) }
     withController { c ->
