@@ -19,7 +19,7 @@ import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.WritableMap
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.facebook.react.turbomodule.core.interfaces.TurboModule
-import com.google.common.util.concurrent.MoreExecutors
+import java.util.concurrent.Executor
 
 class NativeMusicPlayerModule(reactContext: ReactApplicationContext) :
     ReactContextBaseJavaModule(reactContext), TurboModule {
@@ -27,31 +27,37 @@ class NativeMusicPlayerModule(reactContext: ReactApplicationContext) :
   private var controller: MediaController? = null
   private val pendingActions = mutableListOf<(MediaController) -> Unit>()
   private val mainHandler = Handler(Looper.getMainLooper())
+  private val mainExecutor = Executor { command -> mainHandler.post(command) }
+
   private val tracksById = LinkedHashMap<String, Track>()
   private var tickerStarted = false
 
   init {
-    val token = SessionToken(reactContext, ComponentName(reactContext, PlaybackService::class.java))
-    val future = MediaController.Builder(reactContext, token).buildAsync()
-    future.addListener(
-        {
-          val readyController = future.get()
-          controller = readyController
-          PlayerControllerHolder.setController(readyController)
-          readyController.addListener(playerListener)
-          pendingActions.forEach { it(readyController) }
-          pendingActions.clear()
-          startPositionTickerIfNeeded()
-        },
-        MoreExecutors.directExecutor(),
-    )
+    mainHandler.post {
+      val token = SessionToken(reactContext, ComponentName(reactContext, PlaybackService::class.java))
+      val future = MediaController.Builder(reactContext, token).buildAsync()
+      future.addListener(
+          {
+            val readyController = future.get()
+            controller = readyController
+            PlayerControllerHolder.setController(readyController)
+            readyController.addListener(playerListener)
+            pendingActions.forEach { it(readyController) }
+            pendingActions.clear()
+            startPositionTickerIfNeeded()
+          },
+          mainExecutor,
+      )
+    }
   }
 
   override fun getName(): String = NAME
 
   private fun withController(action: (MediaController) -> Unit) {
-    val current = controller
-    if (current != null) action(current) else pendingActions.add(action)
+    mainHandler.post {
+      val current = controller
+      if (current != null) action(current) else pendingActions.add(action)
+    }
   }
 
   // --- Queue -------------------------------------------------------------
