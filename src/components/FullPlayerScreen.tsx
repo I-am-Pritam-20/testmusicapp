@@ -1,5 +1,6 @@
 import React from 'react';
 import {Image, Pressable, StyleSheet, Text, View} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SeekBar from './SeekBar';
 
 export interface FullPlayerScreenProps {
@@ -45,9 +46,10 @@ export default function FullPlayerScreen(props: FullPlayerScreenProps): React.JS
     onToggleShuffle,
     onCycleRepeat,
   } = props;
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, {paddingTop: insets.top, paddingBottom: insets.bottom}]}>
       {/* Tapping/dragging this handle collapses the sheet; the drag itself
           is handled natively by NativeBottomSheet — this Pressable only
           covers the "tap to collapse" case. */}
