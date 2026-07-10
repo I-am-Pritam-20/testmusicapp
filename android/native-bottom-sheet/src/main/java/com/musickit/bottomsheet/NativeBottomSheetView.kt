@@ -5,8 +5,12 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.content.Context
 import android.util.AttributeSet
+import android.view.MotionEvent
+import android.view.VelocityTracker
+import android.view.ViewConfiguration
 import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
+import kotlin.math.abs
 
 
 class NativeBottomSheetView(context: Context, attrs: AttributeSet? = null) :
@@ -21,6 +25,18 @@ class NativeBottomSheetView(context: Context, attrs: AttributeSet? = null) :
   private var laidOut = false
   private var animator: ValueAnimator? = null
 
+  private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
+  private var velocityTracker: VelocityTracker? = null
+  private var downX = 0f
+  private var downY = 0f
+  private var startTranslationY = 0f
+  private var dragging = false
+
+  init {
+    clipChildren = false
+    clipToPadding = false
+  }
+
   override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
     super.onSizeChanged(w, h, oldw, oldh)
     if (!laidOut && h > 0) {
@@ -29,7 +45,6 @@ class NativeBottomSheetView(context: Context, attrs: AttributeSet? = null) :
     }
   }
 
-  /** Sets the state to show once layout completes; a no-op re-trigger if layout already happened. */
   fun setInitialState(stateName: String) {
     val target = parseState(stateName)
     pendingCommand = target
@@ -38,15 +53,11 @@ class NativeBottomSheetView(context: Context, attrs: AttributeSet? = null) :
 
   fun expand() = requestState(SheetState.EXPANDED)
   fun hide() = requestState(SheetState.HIDDEN)
-  // Kept for API compatibility with call sites written as "collapse" —
-  // this sheet has no separate collapsed/peek state, so it just hides.
   fun collapse() = hide()
   fun snapTo(stateName: String) = requestState(parseState(stateName))
 
   private fun requestState(target: SheetState) {
     if (!laidOut) {
-      // Layout hasn't happened yet (e.g. a command fired immediately on
-      // mount) — remember it and apply once onSizeChanged runs.
       pendingCommand = target
       return
     }
@@ -87,5 +98,60 @@ class NativeBottomSheetView(context: Context, attrs: AttributeSet? = null) :
           )
           start()
         }
+  }
+
+  // --- Drag-to-close only --------------------------------------------
+
+  override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
+    if (state != SheetState.EXPANDED) return false
+    when (ev.actionMasked) {
+      MotionEvent.ACTION_DOWN -> {
+        downX = ev.rawX
+        downY = ev.rawY
+        startTranslationY = translationY
+        dragging = false
+        animator?.cancel()
+      }
+      MotionEvent.ACTION_MOVE -> {
+        val dx = ev.rawX - downX
+        val dy = ev.rawY - downY
+        if (!dragging && dy > touchSlop && dy > abs(dx)) {
+          dragging = true
+          return true
+        }
+      }
+    }
+    return false
+  }
+
+  override fun onTouchEvent(ev: MotionEvent): Boolean {
+    if (velocityTracker == null) velocityTracker = VelocityTracker.obtain()
+    velocityTracker?.addMovement(ev)
+
+    when (ev.actionMasked) {
+      MotionEvent.ACTION_MOVE -> {
+        if (!dragging) {
+          val dy = ev.rawY - downY
+          if (dy > touchSlop) dragging = true
+        }
+        if (dragging) {
+          val dy = ev.rawY - downY
+          translationY = (startTranslationY + dy).coerceIn(0f, height.toFloat())
+        }
+      }
+      MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+        if (dragging) {
+          velocityTracker?.computeCurrentVelocity(1000)
+          val velocityY = velocityTracker?.yVelocity ?: 0f
+          val progress = if (height > 0) translationY / height else 0f
+          val target = if (velocityY > 1000f || progress > 0.4f) SheetState.HIDDEN else SheetState.EXPANDED
+          applyState(target, animate = true)
+        }
+        dragging = false
+        velocityTracker?.recycle()
+        velocityTracker = null
+      }
+    }
+    return true
   }
 }

@@ -11,6 +11,30 @@ import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 
+/**
+ * Owns the ExoPlayer instance and MediaSession for the whole app.
+ * MediaSessionService gives us, for free:
+ *  - a MediaStyle notification with artwork + play/pause/next/prev
+ *  - lock screen controls
+ *  - Bluetooth/headset/wearable transport control routing
+ *  - background playback survival while the app is backgrounded
+ *
+ * Repeat-mode policy (see NativeMusicPlayerModule.setRepeatMode for the
+ * JS-facing side of this):
+ *  - JS "off": player.repeatMode = REPEAT_MODE_ALL. The queue never just
+ *    stops at the end — it loops back to the start automatically, with a
+ *    fresh shuffle order if shuffle is on. This is also why the
+ *    notification's next/previous buttons never disappear: Media3 hides
+ *    those when the player reports no next/previous item, which never
+ *    happens while permanently in REPEAT_MODE_ALL.
+ *  - JS "one": player.repeatMode = REPEAT_MODE_ONE, permanently — the
+ *    current track repeats forever until the mode is changed.
+ *  - JS "once": player.repeatMode = REPEAT_MODE_ONE too, but with
+ *    PlayerControllerHolder.repeatOnceArmed = true. The very next repeat
+ *    transition (the current track looping via ONE-mode) consumes that
+ *    flag and reverts repeatMode to ALL, so it only repeats that one
+ *    extra time before continuing with the rest of the queue.
+ */
 class PlaybackService : MediaSessionService() {
 
   private lateinit var player: ExoPlayer
@@ -35,12 +59,24 @@ class PlaybackService : MediaSessionService() {
     player.addListener(
         object : Player.Listener {
           override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-            // Fires exactly when a repeat-mode wraparound happens (last
-            // item -> first item). If shuffle is on, generate a fresh
-            // shuffle order for the new lap instead of replaying the same
-            // sequence every time.
-            if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT && player.shuffleModeEnabled) {
-              player.setShuffleOrder(ShuffleOrder.DefaultShuffleOrder(player.mediaItemCount, System.currentTimeMillis()))
+            if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT) return
+
+            if (PlayerControllerHolder.repeatOnceArmed) {
+              // The single extra repeat (from "once") just happened —
+              // consume it and fall back to normal whole-queue looping.
+              PlayerControllerHolder.repeatOnceArmed = false
+              player.repeatMode = Player.REPEAT_MODE_ALL
+              return
+            }
+
+            // A genuine whole-queue wraparound (last item -> first item)
+            // only happens here when repeatMode is ALL — REPEAT_MODE_ONE
+            // "repeats" also hit this reason, but are excluded above by
+            // the armed-flag check or simply don't need reshuffling.
+            if (player.repeatMode == Player.REPEAT_MODE_ALL && player.shuffleModeEnabled) {
+              player.setShuffleOrder(
+                  ShuffleOrder.DefaultShuffleOrder(player.mediaItemCount, System.currentTimeMillis()),
+              )
             }
           }
         },

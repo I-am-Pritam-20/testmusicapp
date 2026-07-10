@@ -3,7 +3,7 @@ import {Image, Pressable, StyleSheet, Text, View} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SeekBar from './SeekBar';
 import Icon from '@react-native-vector-icons/material-design-icons';
-import {LinearGradient} from 'react-native-linear-gradient';
+import LinearGradient from 'react-native-linear-gradient';
 
 export interface FullPlayerScreenProps {
   
@@ -15,7 +15,7 @@ export interface FullPlayerScreenProps {
   positionMs: number;
   durationMs: number;
   isShuffleEnabled: boolean;
-  repeatMode: 'off' | 'one' | 'all';
+  repeatMode: 'off' | 'one' | 'once';
   onCollapse: () => void;
   onPlayPause: () => void;
   onNext: () => void;
@@ -54,9 +54,8 @@ export default function FullPlayerScreen(props: FullPlayerScreenProps): React.JS
   const insets = useSafeAreaInsets();
 
   return (
-    <LinearGradient 
-      style={[styles.container, {paddingTop: insets.top, paddingBottom: insets.bottom,}]}
-      colors={['#000000', `${bgColor}`]}>
+    <LinearGradient style={[styles.container, {paddingTop: insets.top, paddingBottom: insets.bottom,}]}
+    colors={[`${bgColor}`, '#000000']}>
       <Pressable style={styles.handleArea} onPress={onCollapse}>
         <View style={styles.handle} />
       </Pressable>
@@ -102,7 +101,7 @@ export default function FullPlayerScreen(props: FullPlayerScreenProps): React.JS
           <Icon name='skip-next' color={'#fff'} size={38}/>
         </Pressable>
         <Pressable onPress={onCycleRepeat}>
-          <Icon name={repeatMode === 'one' ? 'repeat-once' : 'repeat'} color={repeatMode !== 'off' ? '#fff' : '#ffffff80'} size={28}/>
+          <Icon name={repeatMode === 'once' ? 'repeat-once' : 'repeat'} color={repeatMode !== 'off' ? '#fff' : '#ffffff80'} size={28}/>
         </Pressable>
       </View>
     </LinearGradient>
@@ -110,7 +109,7 @@ export default function FullPlayerScreen(props: FullPlayerScreenProps): React.JS
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1, paddingHorizontal: 16, borderTopLeftRadius: 24, borderTopRightRadius: 24},
+  container: {flex: 1, paddingHorizontal: 16, paddingTop: 8, borderTopLeftRadius: 24, borderTopRightRadius: 24},
   handleArea: {alignItems: 'center', paddingVertical: 10},
   handle: {width: 36, height: 4, borderRadius: 2, backgroundColor: '#ffffff4d'},
   header: {alignItems: 'center', justifyContent: 'space-between', flexDirection: 'row'},

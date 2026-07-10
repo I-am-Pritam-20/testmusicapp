@@ -117,16 +117,21 @@ class NativeMusicPlayerModule(reactContext: ReactApplicationContext) :
 
   @ReactMethod
   fun setRepeatMode(mode: String) =
-      withController {
-        // "off" intentionally still maps to REPEAT_MODE_ALL, not OFF — the
-        // app never lets the queue just stop at the end (see
-        // PlaybackService's class doc). The JS "off" state is purely a UI
-        // label meaning "not looping a single track", not "stop at the end".
-        it.repeatMode =
-            when (mode) {
-              "one" -> Player.REPEAT_MODE_ONE
-              else -> Player.REPEAT_MODE_ALL
-            }
+      withController { c ->
+        when (mode) {
+          "one" -> {
+            PlayerControllerHolder.repeatOnceArmed = false
+            c.repeatMode = Player.REPEAT_MODE_ONE
+          }
+          "once" -> {
+            PlayerControllerHolder.repeatOnceArmed = true
+            c.repeatMode = Player.REPEAT_MODE_ONE
+          }
+          else -> {
+            PlayerControllerHolder.repeatOnceArmed = false
+            c.repeatMode = Player.REPEAT_MODE_ALL
+          }
+        }
       }
 
   @ReactMethod
@@ -205,9 +210,9 @@ class NativeMusicPlayerModule(reactContext: ReactApplicationContext) :
       }
 
   private fun repeatModeString(mode: Int): String =
-      when (mode) {
-        Player.REPEAT_MODE_ONE -> "one"
-        Player.REPEAT_MODE_ALL -> "all"
+      when {
+        mode == Player.REPEAT_MODE_ONE && PlayerControllerHolder.repeatOnceArmed -> "once"
+        mode == Player.REPEAT_MODE_ONE -> "one"
         else -> "off"
       }
 

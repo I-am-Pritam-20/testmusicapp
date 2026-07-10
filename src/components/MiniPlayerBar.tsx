@@ -29,7 +29,7 @@ export default function MiniPlayerBar({
 }: MiniPlayerBarProps): React.JSX.Element {
   return (
     <Pressable
-      style={[styles.container, {bottom: 10 + insetBottom, backgroundColor: bgColor}]}
+      style={[styles.container, {bottom: 12 + insetBottom, backgroundColor: bgColor, boxShadow: `0px 0px 12px ${bgColor}`}]}
       onPress={onPress}>
       <View style={styles.row}>
         {artworkUrl ? (
@@ -61,10 +61,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    marginHorizontal: 10,
+    marginHorizontal: 12,
     borderRadius: 20,
     height: 64,
-    zIndex: 5,
+    zIndex: 10,
     elevation: 5,
   },
   row: {
@@ -73,8 +73,8 @@ const styles = StyleSheet.create({
     height: 64,
     paddingHorizontal: 10,
   },
-  artwork: {width: 44, height: 44, borderRadius: 10},
-  artworkPlaceholder: {backgroundColor: '#333'},
+  artwork: {width: 44, height: 44, borderRadius: 10, boxShadow: '0px 0px 12px #00000080'},
+  artworkPlaceholder: {backgroundColor: '#545454'},
   textBlock: {marginLeft: 10, width: '55%'},
   title: {color: '#fff', fontWeight: '600'},
   artist: {color: '#ffffffb3', marginTop: 2},

@@ -6,6 +6,7 @@ import MusicPlayer, {type PlaybackStateEvent} from '../native-kit/MusicPlayer';
 import {sampleQueue} from '../data/data';
 import MiniPlayerBar from '../components/MiniPlayerBar';
 import FullPlayerScreen from '../components/FullPlayerScreen';
+import LinearGradient from 'react-native-linear-gradient';
 
 const MINI_PLAYER_HEIGHT = 64;
 const MINI_PLAYER_BOTTOM = 10;
@@ -14,36 +15,40 @@ export default function PlayerScreen(): React.JSX.Element {
   const sheetRef = useRef<NativeBottomSheetHandle>(null);
   const [state, setState] = useState<PlaybackStateEvent | null>(null);
   const insets = useSafeAreaInsets();
-
+ 
   useEffect(() => {
     const unsubscribe = MusicPlayer.onPlaybackState(setState);
     return unsubscribe;
   }, []);
-
+ 
   const currentTrack = sampleQueue.find(t => t.id === state?.currentTrackId) ?? null;
   const isPlaying = state?.status === 'playing';
-
+ 
   const handleCardPress = (index: number) => {
     // Whole list becomes the queue, starting at the tapped card. Plays
     // immediately and just updates the mini player — matches Spotify,
     // which doesn't auto-expand the full sheet on a list tap.
     MusicPlayer.setQueue(sampleQueue, index);
   };
-
+ 
   const handleRepeatCycle = () => {
-    const order: Array<'off' | 'one' | 'all'> = ['off', 'all', 'one'];
+    // off: normal queue (always silently loops under the hood, see native
+    // side). one: current track repeats forever. once: current track
+    // repeats exactly one more time, then automatically resumes the queue.
+    const order: Array<'off' | 'one' | 'once'> = ['off', 'one', 'once'];
     const currentIndex = order.indexOf(state?.repeatMode ?? 'off');
     MusicPlayer.setRepeatMode(order[(currentIndex + 1) % order.length]);
   };
 
   return (
     <View style={styles.container}>
+      <LinearGradient style={[styles.topInsetGradient, {height: insets.top *2}]} colors={['#000000', '#00000080', 'transparent']}></LinearGradient>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        style={[styles.scrollViewc, {paddingTop: insets.top}]}
+        style={[styles.scrollViewc, {paddingTop: insets.top + 16}]}
         contentContainerStyle={[
           styles.scrollContent,
-          {paddingBottom: MINI_PLAYER_HEIGHT + MINI_PLAYER_BOTTOM + insets.bottom + 16},
+          {paddingBottom: MINI_PLAYER_HEIGHT + MINI_PLAYER_BOTTOM + insets.bottom + 48},
         ]}>
         {sampleQueue.map((track, index) => {
           const isCurrent = track.id === state?.currentTrackId;
@@ -62,8 +67,8 @@ export default function PlayerScreen(): React.JSX.Element {
                 />
               )}
               <View style={styles.trackInfo}>
-                <Text style={[styles.trackTitle, isCurrent && styles.trackTitleActive]}>{track.title}</Text>
-                <Text style={styles.trackArtist}>{track.artist}</Text>
+                <Text style={[styles.trackTitle, isCurrent && styles.trackTitleActive]} numberOfLines={1} ellipsizeMode='tail'>{track.title}</Text>
+                <Text style={styles.trackArtist} numberOfLines={1} ellipsizeMode='tail'>{track.artist}</Text>
               </View>
             </Pressable>
           );
@@ -84,7 +89,7 @@ export default function PlayerScreen(): React.JSX.Element {
         onPlayPause={() => (isPlaying ? MusicPlayer.pause() : MusicPlayer.resume())}
         onNext={() => MusicPlayer.skipToNext()}
       />
-
+ 
       {/* Full player sheet — higher zIndex/elevation than the mini player,
           so it slides up and covers it entirely. Pure translateY slide,
           no opacity animation of any kind. */}
@@ -108,12 +113,15 @@ export default function PlayerScreen(): React.JSX.Element {
           onCycleRepeat={handleRepeatCycle}
         />
       </NativeBottomSheet>
+      <LinearGradient style={[styles.bottomInsetGradient, {height: insets.bottom + insets.top * 2}]} colors={[ 'transparent', '#00000080', '#000000']}></LinearGradient>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: '#000000'},
+  container: {flex: 1, backgroundColor: '#000000',},
+  topInsetGradient: { position: 'absolute', zIndex: 5, top: 0, right: 0, left: 0,},
+  bottomInsetGradient: { position: 'absolute', zIndex: 5, bottom: 0, right: 0, left: 0,},
   scrollViewc: {flex: 1},
   scrollContent: {paddingHorizontal: 14, gap: 14},
   trackCard: {
@@ -122,15 +130,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#777',
-    backgroundColor: '#666666aa',
+    borderColor: '#4a4a4aaa',
+    backgroundColor: '#44444490',
     gap: 10,
+    overflow: 'hidden'
   },
-  trackCardActive: {borderColor: '#1db954'},
-  trackImage: {height: 48, width: 48, borderRadius: 6},
-  trackInfo: {alignSelf: 'flex-start'},
-  trackTitle: {color: '#fff', fontWeight: '600'},
-  trackTitleActive: {color: '#1db954'},
+  trackCardActive: {borderColor: '#c688ff'},
+  trackImage: {height: 48, width: 48, borderRadius: 6, boxShadow: '0px 0px 12px #00000080'},
+  trackInfo: {width: '81%', alignSelf: 'flex-start',},
+  trackTitle: {color: '#fff', fontWeight: '600', overflow: 'hidden',},
+  trackTitleActive: {color: '#c688ff'},
   trackArtist: {color: '#ffffffb3', marginTop: 6},
   sheet: {zIndex: 10, elevation: 10},
 });
