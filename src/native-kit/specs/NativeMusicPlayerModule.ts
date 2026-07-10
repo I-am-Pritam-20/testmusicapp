@@ -30,6 +30,7 @@ export interface TrackPayload {
   artist: string;
   artworkUrl?: string;
   durationMs?: number;
+  bgColor?: string;
 }
 
 export interface Spec extends TurboModule {

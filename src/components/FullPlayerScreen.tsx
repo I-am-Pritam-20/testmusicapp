@@ -2,8 +2,12 @@ import React from 'react';
 import {Image, Pressable, StyleSheet, Text, View} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import SeekBar from './SeekBar';
+import Icon from '@react-native-vector-icons/material-design-icons';
+import {LinearGradient} from 'react-native-linear-gradient';
 
 export interface FullPlayerScreenProps {
+  
+  bgColor: string;
   title: string;
   artist: string;
   artworkUrl?: string;
@@ -30,6 +34,7 @@ function formatTime(ms: number): string {
 
 export default function FullPlayerScreen(props: FullPlayerScreenProps): React.JSX.Element {
   const {
+    bgColor,
     title,
     artist,
     artworkUrl,
@@ -49,13 +54,18 @@ export default function FullPlayerScreen(props: FullPlayerScreenProps): React.JS
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.container, {paddingTop: insets.top, paddingBottom: insets.bottom}]}>
-      {/* Tapping/dragging this handle collapses the sheet; the drag itself
-          is handled natively by NativeBottomSheet — this Pressable only
-          covers the "tap to collapse" case. */}
+    <LinearGradient 
+      style={[styles.container, {paddingTop: insets.top, paddingBottom: insets.bottom,}]}
+      colors={['#000000', `${bgColor}`]}>
       <Pressable style={styles.handleArea} onPress={onCollapse}>
         <View style={styles.handle} />
       </Pressable>
+
+      <View style={styles.header}>
+        <Icon name='chevron-down' color={'#fff'} size={32} onPress={onCollapse}/>
+        <Text style={styles.headerTxt}>NOW PLAYING</Text>
+        <Icon name='dots-vertical' color={'#fff'} size={28}/>
+      </View>
 
       <View style={styles.artworkWrap}>
         {artworkUrl ? (
@@ -66,7 +76,7 @@ export default function FullPlayerScreen(props: FullPlayerScreenProps): React.JS
       </View>
 
       <Text style={styles.title} numberOfLines={1}>
-        {title || 'Nothing playing'}
+        {title || 'Not playing'}
       </Text>
       <Text style={styles.artist} numberOfLines={1}>
         {artist}
@@ -78,41 +88,41 @@ export default function FullPlayerScreen(props: FullPlayerScreenProps): React.JS
         <Text style={styles.timeText}>{formatTime(durationMs)}</Text>
       </View>
 
-      <View style={styles.transportRow}>
-        <Pressable onPress={onToggleShuffle} hitSlop={12}>
-          <Text style={[styles.icon, isShuffleEnabled && styles.iconActive]}>🔀</Text>
+      <View style={styles.playerControls}>
+        <Pressable onPress={onToggleShuffle}>
+          <Icon name='shuffle' color={isShuffleEnabled? '#fff' : '#ffffff80'} size={28}/>
         </Pressable>
-        <Pressable onPress={onPrevious} hitSlop={12}>
-          <Text style={styles.iconLarge}>⏮</Text>
+        <Pressable onPress={onPrevious}>
+          <Icon name='skip-previous' color={'#fff'} size={38}/>
         </Pressable>
-        <Pressable onPress={onPlayPause} hitSlop={12} style={styles.playButton}>
-          <Text style={styles.playIcon}>{isPlaying ? '⏸' : '▶'}</Text>
+        <Pressable onPress={onPlayPause}>
+          <Icon name={isPlaying? 'pause-circle' : 'play-circle'} color={'#fff'} size={72}/>
         </Pressable>
-        <Pressable onPress={onNext} hitSlop={12}>
-          <Text style={styles.iconLarge}>⏭</Text>
+        <Pressable onPress={onNext}>
+          <Icon name='skip-next' color={'#fff'} size={38}/>
         </Pressable>
-        <Pressable onPress={onCycleRepeat} hitSlop={12}>
-          <Text style={[styles.icon, repeatMode !== 'off' && styles.iconActive]}>
-            {repeatMode === 'one' ? '🔂' : '🔁'}
-          </Text>
+        <Pressable onPress={onCycleRepeat}>
+          <Icon name={repeatMode === 'one' ? 'repeat-once' : 'repeat'} color={repeatMode !== 'off' ? '#fff' : '#ffffff80'} size={28}/>
         </Pressable>
       </View>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1, backgroundColor: '#0d0d0d', paddingHorizontal: 24, paddingTop: 8},
+  container: {flex: 1, paddingHorizontal: 16, borderTopLeftRadius: 24, borderTopRightRadius: 24},
   handleArea: {alignItems: 'center', paddingVertical: 10},
   handle: {width: 36, height: 4, borderRadius: 2, backgroundColor: '#ffffff4d'},
-  artworkWrap: {alignItems: 'center', marginTop: 24, marginBottom: 32},
-  artwork: {width: 280, height: 280, borderRadius: 16},
+  header: {alignItems: 'center', justifyContent: 'space-between', flexDirection: 'row'},
+  headerTxt: {color: '#ffffffcc', fontSize: 12, letterSpacing: 1.5},
+  artworkWrap: {alignItems: 'center', marginTop: 24, marginBottom: 32, paddingTop: 24},
+  artwork: {width: 320, height: 320, borderRadius: 12, boxShadow: '0px 0px 32px #666666ca'},
   artworkPlaceholder: {backgroundColor: '#2a2a2a'},
-  title: {color: '#fff', fontSize: 20, fontWeight: '700', textAlign: 'center'},
-  artist: {color: '#ffffffb3', fontSize: 15, textAlign: 'center', marginTop: 4, marginBottom: 24},
+  title: {color: '#fff', fontSize: 20, fontWeight: '700', },
+  artist: {color: '#ffffffb3', fontSize: 15, marginTop: 4, marginBottom: 24},
   timeRow: {flexDirection: 'row', justifyContent: 'space-between', marginTop: 4},
   timeText: {color: '#ffffff80', fontSize: 12},
-  transportRow: {
+  playerControls: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

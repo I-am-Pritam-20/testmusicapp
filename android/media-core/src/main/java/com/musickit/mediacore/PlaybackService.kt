@@ -3,19 +3,14 @@ package com.musickit.mediacore
 import android.content.Intent
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.ShuffleOrder
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 
-/**
- * Owns the ExoPlayer instance and MediaSession for the whole app.
- * MediaSessionService gives us, for free:
- *  - a MediaStyle notification with artwork + play/pause/next/prev
- *  - lock screen controls
- *  - Bluetooth/headset/wearable transport control routing
- *  - background playback survival while the app is backgrounded
- */
 class PlaybackService : MediaSessionService() {
 
   private lateinit var player: ExoPlayer
@@ -35,6 +30,21 @@ class PlaybackService : MediaSessionService() {
             .setAudioAttributes(audioAttributes, /* handleAudioFocus= */ true)
             .setHandleAudioBecomingNoisy(true)
             .build()
+            .apply { repeatMode = Player.REPEAT_MODE_ALL }
+
+    player.addListener(
+        object : Player.Listener {
+          override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            // Fires exactly when a repeat-mode wraparound happens (last
+            // item -> first item). If shuffle is on, generate a fresh
+            // shuffle order for the new lap instead of replaying the same
+            // sequence every time.
+            if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT && player.shuffleModeEnabled) {
+              player.setShuffleOrder(ShuffleOrder.DefaultShuffleOrder(player.mediaItemCount, System.currentTimeMillis()))
+            }
+          }
+        },
+    )
 
     mediaSession = MediaSession.Builder(this, player).build()
 

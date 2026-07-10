@@ -10,23 +10,15 @@ export interface NativeBottomSheetHandle {
 }
 
 export interface NativeBottomSheetProps {
-  collapsedHeight: number;
-  initialState?: 'collapsed' | 'expanded' | 'hidden';
+  initialState?: 'hidden' | 'expanded';
   onStateChange?: (state: SheetState) => void;
-  onSlide?: (progress: number) => void;
   style?: ViewStyle;
   children?: React.ReactNode;
 }
 
-/**
- * JS wrapper for the native NativeBottomSheetView. The sheet's vertical
- * drag/snap/animation is 100% native — this component only forwards RN
- * children to render inside it and exposes a small imperative API plus two
- * event callbacks (onStateChange, onSlide) so RN can crossfade its own
- * mini/full player content in response.
- */
+
 const NativeBottomSheet = forwardRef<NativeBottomSheetHandle, NativeBottomSheetProps>(
-  ({collapsedHeight, initialState = 'collapsed', onStateChange, onSlide, style, children}, ref) => {
+  ({initialState = 'hidden', onStateChange, style, children}, ref) => {
     const nativeRef = useRef<React.ElementRef<typeof NativeBottomSheetView>>(null);
 
     const dispatch = useCallback((command: string, args: ReadonlyArray<unknown> = []) => {
@@ -45,10 +37,8 @@ const NativeBottomSheet = forwardRef<NativeBottomSheetHandle, NativeBottomSheetP
       <NativeBottomSheetView
         ref={nativeRef}
         style={[StyleSheet.absoluteFill, style]}
-        collapsedHeight={collapsedHeight}
         initialState={initialState}
-        onSheetStateChange={e => onStateChange?.(e.nativeEvent.state as SheetState)}
-        onSlide={e => onSlide?.(e.nativeEvent.progress)}>
+        onSheetStateChange={e => onStateChange?.(e.nativeEvent.state as SheetState)}>
         {children}
       </NativeBottomSheetView>
     );
