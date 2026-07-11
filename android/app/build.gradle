@@ -109,7 +109,7 @@ android {
             keyPassword keystoreProperties['keyPassword']
         }
     }
-            buildTypes {
+                buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
