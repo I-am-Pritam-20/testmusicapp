@@ -9,7 +9,7 @@ import FullPlayerScreen from '../components/FullPlayerScreen';
 import LinearGradient from 'react-native-linear-gradient';
 
 const MINI_PLAYER_HEIGHT = 64;
-const MINI_PLAYER_BOTTOM = 10;
+const MINI_PLAYER_BOTTOM = 12;
 
 export default function PlayerScreen(): React.JSX.Element {
   const sheetRef = useRef<NativeBottomSheetHandle>(null);

@@ -54,7 +54,8 @@ export default function FullPlayerScreen(props: FullPlayerScreenProps): React.JS
   const insets = useSafeAreaInsets();
 
   return (
-    <LinearGradient style={[styles.container, {paddingTop: insets.top, paddingBottom: insets.bottom,}]}
+    <View style={[styles.container,]}>
+    <LinearGradient style={[styles.gradientContainer, {paddingTop: insets.top, paddingBottom: insets.bottom}]}
     colors={[`${bgColor}`, '#000000']}>
       <Pressable style={styles.handleArea} onPress={onCollapse}>
         <View style={styles.handle} />
@@ -105,17 +106,19 @@ export default function FullPlayerScreen(props: FullPlayerScreenProps): React.JS
         </Pressable>
       </View>
     </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1, paddingHorizontal: 16, paddingTop: 8, borderTopLeftRadius: 24, borderTopRightRadius: 24},
+  container: {flex: 1, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden'},
+  gradientContainer: {flex: 1, paddingHorizontal: 16, paddingTop: 8,},
   handleArea: {alignItems: 'center', paddingVertical: 10},
   handle: {width: 36, height: 4, borderRadius: 2, backgroundColor: '#ffffff4d'},
   header: {alignItems: 'center', justifyContent: 'space-between', flexDirection: 'row'},
   headerTxt: {color: '#ffffffcc', fontSize: 12, letterSpacing: 1.5},
   artworkWrap: {alignItems: 'center', marginTop: 24, marginBottom: 32, paddingTop: 24},
-  artwork: {width: 320, height: 320, borderRadius: 12, boxShadow: '0px 0px 32px #666666ca'},
+  artwork: {width: 320, height: 320, borderRadius: 12, boxShadow: '0px 0px 32px #1b1b1bca'},
   artworkPlaceholder: {backgroundColor: '#2a2a2a'},
   title: {color: '#fff', fontSize: 20, fontWeight: '700', },
   artist: {color: '#ffffffb3', fontSize: 15, marginTop: 4, marginBottom: 24},
