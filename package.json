@@ -1,6 +1,6 @@
 {
   "name": "testmusicapp",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "scripts": {
     "android": "react-native run-android",
@@ -10,9 +10,11 @@
     "test": "jest"
   },
   "dependencies": {
+    "@react-native-vector-icons/material-design-icons": "^13.1.2",
+    "@react-native/new-app-screen": "0.81.0",
     "react": "19.1.0",
     "react-native": "0.81.0",
-    "@react-native/new-app-screen": "0.81.0",
+    "react-native-linear-gradient": "^2.8.3",
     "react-native-safe-area-context": "^5.5.2"
   },
   "devDependencies": {
@@ -36,6 +38,14 @@
     "typescript": "^5.8.3"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
+  },
+  "codegenConfig": {
+    "name": "NativeMusicPlayerSpecs",
+    "type": "all",
+    "jsSrcsDir": "src/native-kit/specs",
+    "android": {
+      "javaPackageName": "com.nativemusicplayer.generated"
+    }
   }
 }

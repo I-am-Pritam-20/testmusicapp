@@ -109,7 +109,7 @@ android {
             keyPassword keystoreProperties['keyPassword']
         }
     }
-            buildTypes {
+                buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
@@ -131,4 +131,11 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+    //for edge-to-edge + transparent system bars dependencies import(works on both Android <= 14 and Android >= 15)
+    implementation("androidx.core:core-ktx:1.17.0")
+    implementation("androidx.activity:activity-ktx:1.12.2")
+
+    //custom native implementation
+    implementation(project(":media-core"))
+    implementation(project(":native-bottom-sheet"))
 }

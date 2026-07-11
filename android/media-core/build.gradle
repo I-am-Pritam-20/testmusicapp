@@ -1,0 +1,31 @@
+apply plugin: "com.android.library"
+apply plugin: "org.jetbrains.kotlin.android"
+
+android {
+    namespace "com.musickit.mediacore"
+    compileSdk rootProject.ext.compileSdkVersion
+
+    defaultConfig {
+        minSdk rootProject.ext.minSdkVersion
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // compileOnly: the consuming app already provides react-android at
+    // runtime; keeping this compileOnly avoids classpath duplication so
+    // this module can be dropped into any RN 0.81+ New Architecture app.
+    compileOnly("com.facebook.react:react-android")
+
+    implementation("androidx.media3:media3-exoplayer:1.10.0")
+    implementation("androidx.media3:media3-session:1.10.0")
+    implementation("androidx.media3:media3-common:1.10.0")
+}
