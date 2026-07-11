@@ -29,7 +29,7 @@ export default function MiniPlayerBar({
 }: MiniPlayerBarProps): React.JSX.Element {
   return (
     <Pressable
-      style={[styles.container, {bottom: 12 + insetBottom, backgroundColor: bgColor, boxShadow: `0px 0px 12px ${bgColor}`}]}
+      style={[styles.container, {bottom: insetBottom < 44 ? 12 + insetBottom : insetBottom, backgroundColor: bgColor, boxShadow: `0px 0px 12px ${bgColor}`}]}
       onPress={onPress}>
       <View style={styles.row}>
         {artworkUrl ? (
