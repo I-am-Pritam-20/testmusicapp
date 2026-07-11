@@ -1,30 +1,12 @@
-/**
- * TurboModule spec for playback control.
- *
- * IMPORTANT: the Android implementation (android/media-core) does NOT
- * extend the codegen-generated abstract Spec class from this file — it's
- * a plain ReactContextBaseJavaModule + TurboModule marker instead, so the
- * :media-core Gradle module has zero build-time dependency on any one
- * app's generated codegen output and can be dropped into another RN
- * project unchanged. See the comment at the top of
- * android/media-core/.../NativeMusicPlayerModule.kt for the full
- * rationale and the tradeoff (no compile-time signature checking against
- * this file on Android; iOS, if/when added, can still use codegen normally).
- *
- * Audio sources: JioSaavn (resolve the actual playable stream URL via your
- * existing JioSaavn API integration before calling setQueue/addToQueue —
- * the native side just needs a final playable URL) and local/offline files
- * (file:// or content:// URIs). Both go through the same MediaItem pipeline.
- */
 import type {TurboModule} from 'react-native';
 import {TurboModuleRegistry} from 'react-native';
 
 export type TrackSourceType = 'jiosaavn' | 'local';
-export type RepeatMode = 'off' | 'one' | 'all';
+export type RepeatMode = 'off' | 'one' | 'once';
 
 export interface TrackPayload {
   id: string;
-  url: string; // resolved JioSaavn stream URL, or file://./content:// for local
+  url: string;
   sourceType: TrackSourceType;
   title: string;
   artist: string;
