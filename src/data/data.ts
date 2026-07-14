@@ -34,7 +34,7 @@ export const sampleQueue: AppTrack[] = [
   },
   {
     id: 'jiosaavn-4',
-    url: 'https://aac.saavncdn.com/608/414dd7443dc32677964b64e5f37670f9_320.mp4',
+    url: 'https://aac.saavncdn.com/259/d2fdab66c38d8f252427da927db4cf4b_320.mp4',
     sourceType: 'jiosaavn',
     title: 'Humnava Mere',
     artist: 'Jubin Nautiyal',
