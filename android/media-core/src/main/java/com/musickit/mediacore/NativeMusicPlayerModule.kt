@@ -1,8 +1,11 @@
 package com.musickit.mediacore
 
 import android.content.ComponentName
+import android.content.ContentUris
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.provider.MediaStore
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -19,6 +22,10 @@ import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.WritableMap
 import com.facebook.react.modules.core.DeviceEventManagerModule
 import com.facebook.react.turbomodule.core.interfaces.TurboModule
+import java.io.File
+import java.io.FileOutputStream
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.concurrent.Executor
 
 class NativeMusicPlayerModule(reactContext: ReactApplicationContext) :
@@ -118,6 +125,11 @@ class NativeMusicPlayerModule(reactContext: ReactApplicationContext) :
   @ReactMethod
   fun setRepeatMode(mode: String) =
       withController { c ->
+        // "off" -> normal queue looping (see PlaybackService for why this
+        // is REPEAT_MODE_ALL, not OFF). "one" -> current track repeats
+        // forever. "once" -> current track repeats exactly one more time,
+        // then automatically resumes normal queue looping — implemented
+        // as a self-consuming REPEAT_MODE_ONE, see PlaybackService.
         when (mode) {
           "one" -> {
             PlayerControllerHolder.repeatOnceArmed = false
@@ -157,6 +169,167 @@ class NativeMusicPlayerModule(reactContext: ReactApplicationContext) :
     // Required by RN's NativeEventEmitter contract on Android; no bookkeeping needed.
   }
 
+  // --- Sleep timer ---------------------------------------------------------
+  // A native Handler-based countdown (not a JS setInterval), so it's immune
+  // to JS-thread throttling/GC pauses. It's tied to this TurboModule's own
+  // lifetime (same as playback-state tracking already is) — not backed by
+  // an OS-level alarm, so it won't survive the whole app process being
+  // killed, but that's the same lifetime as the MediaController connection
+  // itself already has.
+
+  private var sleepTimerRunnable: Runnable? = null
+  private var sleepTimerRemainingSeconds: Int = 0
+
+  @ReactMethod
+  fun startSleepTimer(seconds: Double) {
+    cancelSleepTimerInternal()
+    val total = seconds.toInt()
+    if (total <= 0) return
+    sleepTimerRemainingSeconds = total
+    val runnable =
+        object : Runnable {
+          override fun run() {
+            emitSleepTimerTick(sleepTimerRemainingSeconds)
+            if (sleepTimerRemainingSeconds <= 0) {
+              withController { it.pause() }
+              sleepTimerRunnable = null
+              return
+            }
+            sleepTimerRemainingSeconds -= 1
+            mainHandler.postDelayed(this, 1000L)
+          }
+        }
+    sleepTimerRunnable = runnable
+    mainHandler.post(runnable)
+  }
+
+  @ReactMethod
+  fun cancelSleepTimer() {
+    cancelSleepTimerInternal()
+  }
+
+  private fun cancelSleepTimerInternal() {
+    sleepTimerRunnable?.let { mainHandler.removeCallbacks(it) }
+    sleepTimerRunnable = null
+    sleepTimerRemainingSeconds = 0
+    emitSleepTimerTick(null)
+  }
+
+  private fun emitSleepTimerTick(remainingSeconds: Int?) {
+    emit(
+        "onSleepTimerTick",
+        Arguments.createMap().apply {
+          if (remainingSeconds != null) putInt("remainingSeconds", remainingSeconds) else putNull("remainingSeconds")
+        },
+    )
+  }
+
+  override fun invalidate() {
+    cancelSleepTimerInternal()
+    super.invalidate()
+  }
+
+  // --- Offline: device audio scan + downloads ------------------------------
+  // Both run on a plain background Thread (Promise.resolve/reject are safe
+  // to call from any thread) — no coroutines dependency needed for this.
+
+  /**
+   * Queries MediaStore for locally-stored audio files. Requires
+   * READ_MEDIA_AUDIO to be granted at runtime first (see
+   * native-kit/permissions.ts) — returns an empty list otherwise rather
+   * than throwing, since "no results" and "no permission" look the same
+   * to the query.
+   */
+  @ReactMethod
+  fun scanDeviceAudio(promise: Promise) {
+    Thread {
+      try {
+        val results = Arguments.createArray()
+        val projection =
+            arrayOf(
+                MediaStore.Audio.Media._ID,
+                MediaStore.Audio.Media.TITLE,
+                MediaStore.Audio.Media.ARTIST,
+                MediaStore.Audio.Media.ALBUM,
+                MediaStore.Audio.Media.DURATION,
+            )
+        val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
+        reactApplicationContext.contentResolver
+            .query(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, projection, selection, null, "${MediaStore.Audio.Media.TITLE} ASC")
+            ?.use { cursor ->
+              val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+              val titleCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
+              val artistCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
+              val albumCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
+              val durationCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+              while (cursor.moveToNext()) {
+                val id = cursor.getLong(idCol)
+                val contentUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
+                results.pushMap(
+                    Arguments.createMap().apply {
+                      putString("id", "local-$id")
+                      putString("url", contentUri.toString())
+                      putString("title", cursor.getString(titleCol) ?: "Unknown")
+                      putString("artist", cursor.getString(artistCol) ?: "Unknown Artist")
+                      putString("album", cursor.getString(albumCol))
+                      putDouble("durationMs", cursor.getLong(durationCol).toDouble())
+                    },
+                )
+              }
+            }
+        promise.resolve(results)
+      } catch (e: Exception) {
+        promise.reject("SCAN_ERROR", e.message, e)
+      }
+    }.start()
+  }
+
+  /**
+   * Downloads `url` into this app's own external files directory (no
+   * storage permission needed — app-scoped storage is always writable)
+   * and resolves with a file:// URI on completion. Basic v1: no progress
+   * events, no resume-on-failure. If you need reliable large background
+   * downloads that survive the app being killed mid-download, Android's
+   * DownloadManager system service would be the natural next step.
+   */
+  @ReactMethod
+  fun downloadTrack(url: String, fileName: String, promise: Promise) {
+    Thread {
+      var connection: HttpURLConnection? = null
+      try {
+        val safeName = fileName.replace(Regex("[^A-Za-z0-9._-]"), "_")
+        val destDir = reactApplicationContext.getExternalFilesDir("downloads") ?: reactApplicationContext.filesDir
+        if (!destDir.exists()) destDir.mkdirs()
+        val destFile = File(destDir, safeName)
+
+        connection = URL(url).openConnection() as HttpURLConnection
+        connection.connect()
+        if (connection.responseCode !in 200..299) {
+          promise.reject("DOWNLOAD_ERROR", "HTTP ${connection.responseCode} downloading $url")
+          return@Thread
+        }
+        connection.inputStream.use { input -> FileOutputStream(destFile).use { output -> input.copyTo(output) } }
+        promise.resolve(Uri.fromFile(destFile).toString())
+      } catch (e: Exception) {
+        promise.reject("DOWNLOAD_ERROR", e.message, e)
+      } finally {
+        connection?.disconnect()
+      }
+    }.start()
+  }
+
+  @ReactMethod
+  fun deleteDownloadedFile(localPath: String, promise: Promise) {
+    Thread {
+      try {
+        val file = Uri.parse(localPath).path?.let { File(it) }
+        promise.resolve(file?.exists() == true && file.delete())
+      } catch (e: Exception) {
+        promise.reject("DELETE_ERROR", e.message, e)
+      }
+    }.start()
+  }
+
   // --- Player -> JS events -------------------------------------------------
 
   private val playerListener =
@@ -192,6 +365,14 @@ class NativeMusicPlayerModule(reactContext: ReactApplicationContext) :
   private fun buildStateMap(c: MediaController): WritableMap =
       Arguments.createMap().apply {
         putString("status", statusFor(c))
+        // Deliberately NOT derived from c.isPlaying (which is false during
+        // buffering, e.g. right after a seek) — that caused the play/pause
+        // button to visually flip to "paused" every time the user
+        // scrubbed the seek bar, even though they never touched play/pause.
+        // playWhenReady reflects actual user intent and stays true through
+        // a seek-induced buffer, only flipping when pause()/stop() is
+        // explicitly called.
+        putBoolean("isPlaying", c.playWhenReady)
         putDouble("positionMs", c.currentPosition.toDouble())
         putDouble("durationMs", c.duration.coerceAtLeast(0).toDouble())
         putString("currentTrackId", c.currentMediaItem?.mediaId)

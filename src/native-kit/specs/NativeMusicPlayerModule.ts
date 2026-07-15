@@ -6,7 +6,7 @@ export type RepeatMode = 'off' | 'one' | 'once';
 
 export interface TrackPayload {
   id: string;
-  url: string;
+  url: string; // resolved JioSaavn stream URL, or file://./content:// for local
   sourceType: TrackSourceType;
   title: string;
   artist: string;
@@ -43,6 +43,18 @@ export interface Spec extends TurboModule {
 
   // Required by RN's NativeEventEmitter contract on Android; both are no-ops
   // in the implementation, listener bookkeeping is handled by the OS pipe.
+  // Native sleep timer (Handler-based, not a JS setInterval — see the
+  // Kotlin implementation for why). Emits onSleepTimerTick with
+  // remainingSeconds each second, and null once cancelled/finished.
+  startSleepTimer(seconds: number): void;
+  cancelSleepTimer(): void;
+
+  // Offline: local device audio scan (requires READ_MEDIA_AUDIO granted at
+  // runtime) and basic file download to app-specific storage.
+  scanDeviceAudio(): Promise<Array<Object>>;
+  downloadTrack(url: string, fileName: string): Promise<string>;
+  deleteDownloadedFile(localPath: string): Promise<boolean>;
+
   addListener(eventName: string): void;
   removeListeners(count: number): void;
 }

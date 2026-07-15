@@ -12,7 +12,25 @@ import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import kotlin.math.abs
 
-
+/**
+ * A self-contained, RN-agnostic full-screen sheet container that slides
+ * between fully HIDDEN (translated off the bottom of the screen) and
+ * fully EXPANDED (covering the whole screen).
+ *
+ * Opening only ever happens via expand(), called from JS (tapping a
+ * separately-rendered mini player) — there is no drag-to-open. Closing
+ * can happen either via hide()/collapse() from JS (a button/handle tap),
+ * OR via a drag gesture while already EXPANDED — see the touch-handling
+ * section below for how that's scoped to avoid interfering with normal
+ * taps and the seek bar's horizontal drag.
+ *
+ * clipChildren/clipToPadding are disabled: Android ViewGroups clip
+ * children to their bounds by default (unlike React Native's own view
+ * classes, which don't), which silently breaks things like RN's `boxShadow`
+ * style on nested content whenever their shadow extends past its own
+ * bounds — that only shows up once content lives inside a raw native
+ * ViewGroup like this one.
+ */
 class NativeBottomSheetView(context: Context, attrs: AttributeSet? = null) :
     FrameLayout(context, attrs) {
 
@@ -53,6 +71,8 @@ class NativeBottomSheetView(context: Context, attrs: AttributeSet? = null) :
 
   fun expand() = requestState(SheetState.EXPANDED)
   fun hide() = requestState(SheetState.HIDDEN)
+  // Kept for API compatibility with call sites written as "collapse" —
+  // this sheet has no separate collapsed/peek state, so it just hides.
   fun collapse() = hide()
   fun snapTo(stateName: String) = requestState(parseState(stateName))
 
@@ -101,6 +121,12 @@ class NativeBottomSheetView(context: Context, attrs: AttributeSet? = null) :
   }
 
   // --- Drag-to-close only --------------------------------------------
+  // Only active while EXPANDED. Only claims the gesture once a MOVE is
+  // clearly vertical AND downward (dy > touchSlop && dy > abs(dx)) — a
+  // plain tap never accumulates enough dy to trigger this, and the seek
+  // bar's horizontal drag never satisfies dy > abs(dx). This is what lets
+  // buttons and the seek bar keep working normally while still allowing a
+  // swipe-down-to-close gesture from anywhere else on the sheet.
 
   override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
     if (state != SheetState.EXPANDED) return false
@@ -144,7 +170,9 @@ class NativeBottomSheetView(context: Context, attrs: AttributeSet? = null) :
           velocityTracker?.computeCurrentVelocity(1000)
           val velocityY = velocityTracker?.yVelocity ?: 0f
           val progress = if (height > 0) translationY / height else 0f
-          val target = if (velocityY > 1000f || progress > 0.4f) SheetState.HIDDEN else SheetState.EXPANDED
+          // Lowered thresholds: a quick, small flick should close it, not
+          // require a large drag distance.
+          val target = if (velocityY > 400f || progress > 0.2f) SheetState.HIDDEN else SheetState.EXPANDED
           applyState(target, animate = true)
         }
         dragging = false

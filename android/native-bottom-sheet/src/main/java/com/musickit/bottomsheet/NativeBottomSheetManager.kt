@@ -8,7 +8,16 @@ import com.facebook.react.uimanager.ViewGroupManager
 import com.facebook.react.uimanager.annotations.ReactProp
 import com.facebook.react.uimanager.events.RCTEventEmitter
 
-
+/**
+ * Fabric ViewGroupManager for <NativeBottomSheetView />. Uses @ReactProp
+ * and a String-keyed receiveCommand override (both fine under Fabric
+ * without a generated ViewManagerDelegate).
+ *
+ * NOTE: `receiveCommand(root, commandId: String, args)` is the modern
+ * Fabric-era signature; if your RN version's ViewManager base class still
+ * expects `commandId: Int`, switch to the older int-based
+ * receiveCommand/getCommandsMap() pair.
+ */
 class NativeBottomSheetManager : ViewGroupManager<NativeBottomSheetView>() {
 
   override fun getName(): String = "NativeBottomSheetView"

@@ -78,3 +78,5 @@ yarn-error.log
 android/app/release.keystore
 android/keystore.properties
 .env.production
+.env.example
+.env

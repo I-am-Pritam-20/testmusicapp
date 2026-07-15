@@ -7,6 +7,8 @@ import {NativeEventEmitter} from 'react-native';
 import NativeMusicPlayerModule from './specs/NativeMusicPlayerModule';
 import type {RepeatMode, TrackPayload} from './specs/NativeMusicPlayerModule';
 
+export type {RepeatMode, TrackPayload};
+
 const emitter = new NativeEventEmitter(NativeMusicPlayerModule as any);
 
 export type PlaybackStatus =
@@ -19,6 +21,11 @@ export type PlaybackStatus =
 
 export interface PlaybackStateEvent {
   status: PlaybackStatus;
+  /** Reflects user intent (native playWhenReady) — stays true through a
+   *  seek-induced buffer, only false when the user explicitly paused/
+   *  stopped. Use this for the play/pause button, not `status`, which can
+   *  read "buffering" even while the user still means to be playing. */
+  isPlaying: boolean;
   positionMs: number;
   durationMs: number;
   currentTrackId: string | null;
@@ -35,6 +42,15 @@ export interface QueueChangedEvent {
 export interface PlayerErrorEvent {
   code: string;
   message: string;
+}
+
+export interface DeviceAudioFile {
+  id: string;
+  url: string;
+  title: string;
+  artist: string;
+  album: string | null;
+  durationMs: number;
 }
 
 class MusicPlayer {
@@ -111,6 +127,34 @@ class MusicPlayer {
   onError(callback: (event: PlayerErrorEvent) => void): () => void {
     const sub = emitter.addListener('onError', callback);
     return () => sub.remove();
+  }
+
+  startSleepTimer(seconds: number): void {
+    NativeMusicPlayerModule.startSleepTimer(seconds);
+  }
+
+  cancelSleepTimer(): void {
+    NativeMusicPlayerModule.cancelSleepTimer();
+  }
+
+  /** `remainingSeconds` is null once the timer is cancelled or finishes. */
+  onSleepTimerTick(callback: (remainingSeconds: number | null) => void): () => void {
+    const sub = emitter.addListener('onSleepTimerTick', (event: {remainingSeconds: number | null}) =>
+      callback(event.remainingSeconds),
+    );
+    return () => sub.remove();
+  }
+
+  scanDeviceAudio(): Promise<DeviceAudioFile[]> {
+    return NativeMusicPlayerModule.scanDeviceAudio() as Promise<DeviceAudioFile[]>;
+  }
+
+  downloadTrack(url: string, fileName: string): Promise<string> {
+    return NativeMusicPlayerModule.downloadTrack(url, fileName);
+  }
+
+  deleteDownloadedFile(localPath: string): Promise<boolean> {
+    return NativeMusicPlayerModule.deleteDownloadedFile(localPath);
   }
 }
 

@@ -1,12 +1,11 @@
 import React from 'react';
 import {Image, Pressable, StyleSheet, Text, View} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import LinearGradient from 'react-native-linear-gradient';
 import SeekBar from './SeekBar';
 import Icon from '@react-native-vector-icons/material-design-icons';
-import LinearGradient from 'react-native-linear-gradient';
 
 export interface FullPlayerScreenProps {
-  
   bgColor: string;
   title: string;
   artist: string;
@@ -23,6 +22,11 @@ export interface FullPlayerScreenProps {
   onSeek: (positionMs: number) => void;
   onToggleShuffle: () => void;
   onCycleRepeat: () => void;
+  onOpenQueue: () => void;
+  onOpenSleepTimer: () => void;
+  onOpenMenu: () => void;
+  isLiked: boolean;
+  onToggleLiked: () => void;
 }
 
 function formatTime(ms: number): string {
@@ -50,21 +54,39 @@ export default function FullPlayerScreen(props: FullPlayerScreenProps): React.JS
     onSeek,
     onToggleShuffle,
     onCycleRepeat,
+    onOpenQueue,
+    onOpenSleepTimer,
+    onOpenMenu,
+    isLiked,
+    onToggleLiked,
   } = props;
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.container,]}>
-    <LinearGradient style={[styles.gradientContainer, {paddingTop: insets.top, paddingBottom: insets.bottom}]}
-    colors={[`${bgColor}`, '#000000']}>
+    <View style={[styles.container, {paddingTop: insets.top, paddingBottom: insets.bottom}]}>
+      {/* Purely a visual background layer. LinearGradient's own measure/
+          sizing behavior isn't reliable as a flex layout container (rows
+          using justifyContent/parent width can collapse), so it never
+          holds any content — it just paints a rect behind everything,
+          while the View above still does all the real flex layout. */}
+      <LinearGradient
+        colors={[bgColor, '#000000']}
+        start={{x: 0, y: 0}}
+        end={{x: 0, y: 1}}
+        style={styles.gradientBackground}
+      />
+
+      {/* Tapping/dragging this handle collapses the sheet; the drag itself
+          is handled natively by NativeBottomSheet — this Pressable only
+          covers the "tap to collapse" case. */}
       <Pressable style={styles.handleArea} onPress={onCollapse}>
         <View style={styles.handle} />
       </Pressable>
 
       <View style={styles.header}>
-        <Icon name='chevron-down' color={'#fff'} size={32} onPress={onCollapse}/>
+        <Icon name="chevron-down" color={'#fff'} size={32} onPress={onCollapse} />
         <Text style={styles.headerTxt}>NOW PLAYING</Text>
-        <Icon name='dots-vertical' color={'#fff'} size={28}/>
+        <Icon name="dots-vertical" color={'#fff'} size={28} onPress={onOpenMenu} />
       </View>
 
       <View style={styles.artworkWrap}>
@@ -75,12 +97,19 @@ export default function FullPlayerScreen(props: FullPlayerScreenProps): React.JS
         )}
       </View>
 
-      <Text style={styles.title} numberOfLines={1}>
-        {title || 'Not playing'}
-      </Text>
-      <Text style={styles.artist} numberOfLines={1}>
-        {artist}
-      </Text>
+      <View style={styles.titleRow}>
+        <View style={styles.titleTextBlock}>
+          <Text style={styles.title} numberOfLines={1}>
+            {title || 'Not playing'}
+          </Text>
+          <Text style={styles.artist} numberOfLines={1}>
+            {artist}
+          </Text>
+        </View>
+        <Pressable hitSlop={12} onPress={onToggleLiked}>
+          <Icon name={isLiked ? 'heart' : 'heart-outline'} color={isLiked ? '#1db954' : '#ffffffcc'} size={26} />
+        </Pressable>
+      </View>
 
       <SeekBar positionMs={positionMs} durationMs={durationMs} onSeek={onSeek} />
       <View style={styles.timeRow}>
@@ -90,38 +119,61 @@ export default function FullPlayerScreen(props: FullPlayerScreenProps): React.JS
 
       <View style={styles.playerControls}>
         <Pressable onPress={onToggleShuffle}>
-          <Icon name='shuffle' color={isShuffleEnabled? '#fff' : '#ffffff80'} size={28}/>
+          <Icon name="shuffle" color={isShuffleEnabled ? '#fff' : '#ffffff80'} size={28} />
         </Pressable>
         <Pressable onPress={onPrevious}>
-          <Icon name='skip-previous' color={'#fff'} size={38}/>
+          <Icon name="skip-previous" color={'#fff'} size={38} />
         </Pressable>
         <Pressable onPress={onPlayPause}>
-          <Icon name={isPlaying? 'pause-circle' : 'play-circle'} color={'#fff'} size={72}/>
+          <Icon name={isPlaying ? 'pause-circle' : 'play-circle'} color={'#fff'} size={72} />
         </Pressable>
         <Pressable onPress={onNext}>
-          <Icon name='skip-next' color={'#fff'} size={38}/>
+          <Icon name="skip-next" color={'#fff'} size={38} />
         </Pressable>
         <Pressable onPress={onCycleRepeat}>
-          <Icon name={repeatMode === 'once' ? 'repeat-once' : 'repeat'} color={repeatMode !== 'off' ? '#fff' : '#ffffff80'} size={28}/>
+          <Icon
+            name={repeatMode === 'once' ? 'repeat-once' : 'repeat'}
+            color={repeatMode !== 'off' ? '#fff' : '#ffffff80'}
+            size={28}
+          />
         </Pressable>
       </View>
-    </LinearGradient>
+
+      <View style={styles.secondaryRow}>
+        <Pressable onPress={onOpenSleepTimer} style={styles.secondaryBtn}>
+          <Icon name="timer-outline" color={'#ffffffcc'} size={22} />
+        </Pressable>
+        <Pressable onPress={onOpenQueue} style={styles.secondaryBtn}>
+          <Icon name="playlist-music" color={'#ffffffcc'} size={22} />
+        </Pressable>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1, borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden'},
-  gradientContainer: {flex: 1, paddingHorizontal: 16, paddingTop: 8,},
+  container: {flex: 1, paddingHorizontal: 16, paddingTop: 8},
+  gradientBackground: {
+    ...StyleSheet.absoluteFillObject,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
   handleArea: {alignItems: 'center', paddingVertical: 10},
   handle: {width: 36, height: 4, borderRadius: 2, backgroundColor: '#ffffff4d'},
   header: {alignItems: 'center', justifyContent: 'space-between', flexDirection: 'row'},
   headerTxt: {color: '#ffffffcc', fontSize: 12, letterSpacing: 1.5},
   artworkWrap: {alignItems: 'center', marginTop: 24, marginBottom: 32, paddingTop: 24},
-  artwork: {width: 320, height: 320, borderRadius: 12, boxShadow: '0px 0px 32px #1b1b1bca'},
+  artwork: {width: 320, height: 320, borderRadius: 12, boxShadow: '0px 0px 32px #666666ca'},
   artworkPlaceholder: {backgroundColor: '#2a2a2a'},
-  title: {color: '#fff', fontSize: 20, fontWeight: '700', },
-  artist: {color: '#ffffffb3', fontSize: 15, marginTop: 4, marginBottom: 24},
+  title: {color: '#fff', fontSize: 20, fontWeight: '700'},
+  artist: {color: '#ffffffb3', fontSize: 15, marginTop: 4},
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  titleTextBlock: {flex: 1, marginRight: 12},
   timeRow: {flexDirection: 'row', justifyContent: 'space-between', marginTop: 4},
   timeText: {color: '#ffffff80', fontSize: 12},
   playerControls: {
@@ -131,16 +183,11 @@ const styles = StyleSheet.create({
     marginTop: 32,
     paddingHorizontal: 8,
   },
-  icon: {fontSize: 20, color: '#ffffff80'},
-  iconActive: {color: '#fff'},
-  iconLarge: {fontSize: 28, color: '#fff'},
-  playButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#fff',
-    alignItems: 'center',
+  secondaryRow: {
+    flexDirection: 'row',
     justifyContent: 'center',
+    gap: 32,
+    marginTop: 24,
   },
-  playIcon: {fontSize: 26, color: '#000'},
+  secondaryBtn: {padding: 8},
 });

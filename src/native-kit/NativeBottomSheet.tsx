@@ -16,7 +16,13 @@ export interface NativeBottomSheetProps {
   children?: React.ReactNode;
 }
 
-
+/**
+ * JS wrapper for the native NativeBottomSheetView. This is a pure
+ * translateY slide with no gesture recognition and no opacity animation —
+ * open/close only happen via expand()/hide(), driven by JS (e.g. tapping
+ * the mini player). "collapse" is kept as an alias for "hide" so existing
+ * call sites (onCollapse-style naming) don't need renaming.
+ */
 const NativeBottomSheet = forwardRef<NativeBottomSheetHandle, NativeBottomSheetProps>(
   ({initialState = 'hidden', onStateChange, style, children}, ref) => {
     const nativeRef = useRef<React.ElementRef<typeof NativeBottomSheetView>>(null);
