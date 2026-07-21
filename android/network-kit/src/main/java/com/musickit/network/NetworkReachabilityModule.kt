@@ -4,6 +4,7 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.content.Context
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -56,7 +57,7 @@ class NetworkReachabilityModule(private val reactContext: ReactApplicationContex
   override fun getName(): String = NAME
 
   private val connectivityManager: ConnectivityManager
-    get() = reactContext.getSystemService(ReactApplicationContext.CONNECTIVITY_SERVICE) as ConnectivityManager
+    get() = reactContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
   private val moduleScope = CoroutineScope(Dispatchers.IO + Job())
   private var lastCheckedAtMs = 0L

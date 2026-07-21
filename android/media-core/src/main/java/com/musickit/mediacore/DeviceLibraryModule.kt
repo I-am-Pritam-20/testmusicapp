@@ -40,7 +40,11 @@ class DeviceLibraryModule(reactContext: ReactApplicationContext) :
   /** Launches the system folder picker. Resolves null if the user cancels. */
   @ReactMethod
   fun pickAudioFolder(promise: Promise) {
-    val activity = currentActivity
+    val activity = reactApplicationContext.currentActivity
+    // val activity: Activity = reactApplicationContext.currentActivity ?: run {
+    //   promise.reject(...)
+    //   return
+    // }
     if (activity == null) {
       promise.reject("NO_ACTIVITY", "No current activity to launch the folder picker from")
       return
@@ -53,7 +57,7 @@ class DeviceLibraryModule(reactContext: ReactApplicationContext) :
     activity.startActivityForResult(intent, PICK_FOLDER_REQUEST_CODE)
   }
 
-  override fun onActivityResult(activity: Activity?, requestCode: Int, resultCode: Int, data: Intent?) {
+  override fun onActivityResult(activity: Activity, requestCode: Int, resultCode: Int, data: Intent?) {
     if (requestCode != PICK_FOLDER_REQUEST_CODE) return
     val promise = pickFolderPromise ?: return
     pickFolderPromise = null
@@ -78,7 +82,7 @@ class DeviceLibraryModule(reactContext: ReactApplicationContext) :
     )
   }
 
-  override fun onNewIntent(intent: Intent?) {
+  override fun onNewIntent(intent: Intent) {
     // Not used — folder picking is a plain startActivityForResult round trip.
   }
 
