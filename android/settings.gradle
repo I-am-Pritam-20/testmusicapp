@@ -5,4 +5,5 @@ rootProject.name = 'testmusicapp'
 include ':app'
 include ':media-core'
 include ':native-bottom-sheet'
+include ':network-kit'
 includeBuild('../node_modules/@react-native/gradle-plugin')

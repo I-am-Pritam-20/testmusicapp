@@ -4,8 +4,11 @@ import {useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RootStackParamList} from '../navigation/RootNavigator';
 import {globalSearch, searchAlbums, searchArtists, searchPlaylists, searchSongs} from '../services/musicApi';
-import {songsToTracks} from '../services/trackMapper';
+import {songsToTracks, type AppTrack} from '../services/trackMapper';
+import {DeviceLibraryService} from '../services/DeviceLibraryService';
+import {LibraryService} from '../services/LibraryService';
 import {usePlaybackQueue} from '../context/PlaybackQueueContext';
+import {useNetworkStatus} from '../components/NetworkStatusProvider';
 import type {
   AlbumSearchResult,
   ArtistSearchResult,
@@ -32,15 +35,54 @@ function bestImage(images: ImageLink[] | undefined): string | undefined {
   return images && images.length > 0 ? images[images.length - 1].url : undefined;
 }
 
+/** A song can only ever come from one of these two rows — a downloaded
+ *  track keeps its original id, so if it matches both a local scan and
+ *  the online API it's deduped down to a single 'local' row (it's
+ *  playable offline right now, which is the more useful thing to show). */
 type Row =
   | {kind: 'song'; item: Song; songsForQueue: Song[]; queueIndex: number}
+  | {kind: 'local-song'; item: AppTrack; tracksForQueue: AppTrack[]; queueIndex: number}
   | {kind: 'album'; item: AlbumSearchResult}
   | {kind: 'artist'; item: ArtistSearchResult}
   | {kind: 'playlist'; item: PlaylistSearchResult};
 
+function searchLocalTracks(query: string): AppTrack[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  const deviceTracks = DeviceLibraryService.getFiles().map(f => DeviceLibraryService.toAppTrack(f));
+  const downloadTracks: AppTrack[] = LibraryService.getDownloads();
+  const byId = new Map<string, AppTrack>();
+  for (const t of [...downloadTracks, ...deviceTracks]) byId.set(t.id, t);
+  return Array.from(byId.values()).filter(
+    t => t.title.toLowerCase().includes(q) || (t.artist ?? '').toLowerCase().includes(q),
+  );
+}
+
+/** Merges online + local song matches into one list, deduped by id with
+ *  local taking precedence (see the Row comment above). */
+function buildSongRows(onlineSongs: Song[], localTracks: AppTrack[]): Row[] {
+  const localIds = new Set(localTracks.map(t => t.id));
+  const filteredOnline = onlineSongs.filter(s => !localIds.has(s.id));
+  const onlineRows: Row[] = filteredOnline.map(
+    (item, i) => ({kind: 'song', item, songsForQueue: filteredOnline, queueIndex: i}) as Row,
+  );
+  const localRows: Row[] = localTracks.map(
+    (item, i) => ({kind: 'local-song', item, tracksForQueue: localTracks, queueIndex: i}) as Row,
+  );
+  return [...onlineRows, ...localRows];
+}
+
+/** Grey = local/offline, green = inotune/online — applied only to songs,
+ *  the one result kind that can genuinely come from either world. */
+function SourceDot({source}: {source: 'local' | 'online'}): React.JSX.Element {
+  return <View style={[styles.sourceDot, source === 'local' ? styles.sourceDotLocal : styles.sourceDotOnline]} />;
+}
+
 export default function SearchScreen(): React.JSX.Element {
   const navigation = useNavigation<Nav>();
   const {playQueue} = usePlaybackQueue();
+  const {viewMode} = useNetworkStatus();
+  const isOffline = viewMode === 'offline';
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<FilterKey>('all');
   const [loading, setLoading] = useState(false);
@@ -49,11 +91,30 @@ export default function SearchScreen(): React.JSX.Element {
   const [albumResults, setAlbumResults] = useState<AlbumSearchResult[]>([]);
   const [artistResults, setArtistResults] = useState<ArtistSearchResult[]>([]);
   const [playlistResults, setPlaylistResults] = useState<PlaylistSearchResult[]>([]);
+  const [localResults, setLocalResults] = useState<AppTrack[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestIdRef = useRef(0);
 
   const runSearch = async (text: string, activeFilter: FilterKey) => {
-    if (text.trim().length === 0) {
+    const trimmed = text.trim();
+    if (trimmed.length === 0) {
+      setGlobalResult(null);
+      setSongResults([]);
+      setAlbumResults([]);
+      setArtistResults([]);
+      setPlaylistResults([]);
+      setLocalResults([]);
+      return;
+    }
+
+    // Local matches are synchronous (no network), so they're always
+    // available immediately regardless of connectivity.
+    setLocalResults(searchLocalTracks(trimmed));
+
+    if (isOffline) {
+      // Nothing reachable — clear any stale online results from before
+      // connectivity dropped so they don't linger next to local matches.
+      setLoading(false);
       setGlobalResult(null);
       setSongResults([]);
       setAlbumResults([]);
@@ -61,23 +122,24 @@ export default function SearchScreen(): React.JSX.Element {
       setPlaylistResults([]);
       return;
     }
+
     const requestId = ++requestIdRef.current;
     setLoading(true);
     try {
       if (activeFilter === 'all') {
-        const result = await globalSearch(text);
+        const result = await globalSearch(trimmed);
         if (requestId === requestIdRef.current) setGlobalResult(result);
       } else if (activeFilter === 'songs') {
-        const result = await searchSongs(text);
+        const result = await searchSongs(trimmed);
         if (requestId === requestIdRef.current) setSongResults(result.results);
       } else if (activeFilter === 'albums') {
-        const result = await searchAlbums(text);
+        const result = await searchAlbums(trimmed);
         if (requestId === requestIdRef.current) setAlbumResults(result.results);
       } else if (activeFilter === 'artists') {
-        const result = await searchArtists(text);
+        const result = await searchArtists(trimmed);
         if (requestId === requestIdRef.current) setArtistResults(result.results);
       } else {
-        const result = await searchPlaylists(text);
+        const result = await searchPlaylists(trimmed);
         if (requestId === requestIdRef.current) setPlaylistResults(result.results);
       }
     } finally {
@@ -100,29 +162,34 @@ export default function SearchScreen(): React.JSX.Element {
     playQueue(songsToTracks(songs), index);
   };
 
+  const handleLocalTrackPress = (tracks: AppTrack[], index: number) => {
+    playQueue(tracks, index);
+  };
+
   const rows: Row[] = (() => {
-    if (filter === 'songs') {
-      return songResults.map((item, i) => ({kind: 'song', item, songsForQueue: songResults, queueIndex: i}) as Row);
-    }
+    if (filter === 'songs') return buildSongRows(songResults, localResults);
     if (filter === 'albums') return albumResults.map(item => ({kind: 'album', item}) as Row);
     if (filter === 'artists') return artistResults.map(item => ({kind: 'artist', item}) as Row);
     if (filter === 'playlists') return playlistResults.map(item => ({kind: 'playlist', item}) as Row);
-    if (!globalResult) return [];
+    // 'all'
+    const onlineSongs = globalResult?.songs.results ?? [];
+    const songRows = buildSongRows(onlineSongs, localResults);
+    if (!globalResult) return songRows;
     return [
-      ...globalResult.songs.results.map(
-        (item, i) => ({kind: 'song', item, songsForQueue: globalResult.songs.results, queueIndex: i}) as Row,
-      ),
+      ...songRows,
       ...globalResult.albums.results.map(item => ({kind: 'album', item}) as Row),
       ...globalResult.artists.results.map(item => ({kind: 'artist', item}) as Row),
       ...globalResult.playlists.results.map(item => ({kind: 'playlist', item}) as Row),
     ];
   })();
 
+  const showOfflineOnlyHint = isOffline && (filter === 'albums' || filter === 'artists' || filter === 'playlists');
+
   return (
     <View style={styles.container}>
       <TextInput
         style={styles.searchInput}
-        placeholder="Search songs, albums, artists, playlists"
+        placeholder={isOffline ? 'Search downloaded & device songs' : 'Search songs, albums, artists, playlists'}
         placeholderTextColor="#ffffff80"
         value={query}
         onChangeText={handleChangeText}
@@ -140,6 +207,11 @@ export default function SearchScreen(): React.JSX.Element {
 
       {loading ? (
         <ActivityIndicator color="#1db954" style={styles.loading} />
+      ) : showOfflineOnlyHint ? (
+        <Text style={styles.offlineHint}>
+          {FILTERS.find(f => f.key === filter)?.label} need an internet connection — try Songs for what's downloaded
+          or on this device.
+        </Text>
       ) : (
         <FlatList
           data={rows}
@@ -158,6 +230,29 @@ export default function SearchScreen(): React.JSX.Element {
                       {row.item.artists?.primary?.map(a => a.name).join(', ')}
                     </Text>
                   </View>
+                  <SourceDot source="online" />
+                </Pressable>
+              );
+            }
+            if (row.kind === 'local-song') {
+              return (
+                <Pressable
+                  style={styles.resultRow}
+                  onPress={() => handleLocalTrackPress(row.tracksForQueue, row.queueIndex)}>
+                  {row.item.artworkUrl ? (
+                    <Image source={{uri: row.item.artworkUrl}} style={styles.resultImage} />
+                  ) : (
+                    <View style={[styles.resultImage, styles.resultImageFallback]} />
+                  )}
+                  <View style={styles.resultText}>
+                    <Text style={styles.resultTitle} numberOfLines={1}>
+                      {row.item.title}
+                    </Text>
+                    <Text style={styles.resultSubtitle} numberOfLines={1}>
+                      {row.item.artist}
+                    </Text>
+                  </View>
+                  <SourceDot source="local" />
                 </Pressable>
               );
             }
@@ -205,6 +300,13 @@ export default function SearchScreen(): React.JSX.Element {
               </Pressable>
             );
           }}
+          ListEmptyComponent={
+            query.trim().length > 0 ? (
+              <Text style={styles.emptyText}>
+                {isOffline ? "No matches in what's downloaded or on this device." : 'No results.'}
+              </Text>
+            ) : null
+          }
         />
       )}
     </View>
@@ -227,11 +329,17 @@ const styles = StyleSheet.create({
   pillText: {color: '#ffffffb3', fontSize: 13},
   pillTextActive: {color: '#000', fontWeight: '700'},
   loading: {marginTop: 32},
+  offlineHint: {color: '#ffffff80', fontSize: 13, textAlign: 'center', marginTop: 32, paddingHorizontal: 32, lineHeight: 18},
   list: {paddingHorizontal: 16, paddingTop: 12, paddingBottom: 140},
   resultRow: {flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 12},
   resultImage: {width: 48, height: 48, borderRadius: 6, backgroundColor: '#222'},
+  resultImageFallback: {backgroundColor: '#1a1a1a'},
   artistImage: {borderRadius: 24},
   resultText: {flex: 1},
   resultTitle: {color: '#fff', fontWeight: '600'},
   resultSubtitle: {color: '#ffffff80', fontSize: 12, marginTop: 2},
+  sourceDot: {width: 9, height: 9, borderRadius: 4.5},
+  sourceDotLocal: {backgroundColor: '#8a8a8a'},
+  sourceDotOnline: {backgroundColor: '#1db954'},
+  emptyText: {color: '#ffffff80', textAlign: 'center', marginTop: 32},
 });

@@ -1,11 +1,8 @@
-import React, {forwardRef, useImperativeHandle, useRef, useState} from 'react';
-import {Animated, Pressable, StyleSheet, View, useWindowDimensions} from 'react-native';
-import {
-  PanGestureHandler,
-  State,
-  type PanGestureHandlerGestureEvent,
-  type PanGestureHandlerStateChangeEvent,
-} from 'react-native-gesture-handler';
+import React, {forwardRef, useImperativeHandle, useState} from 'react';
+import {Pressable, StyleSheet, View, useWindowDimensions} from 'react-native';
+import {Gesture, GestureDetector} from 'react-native-gesture-handler';
+import Animated, {Easing, runOnJS, useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
+import {Z_INDEX} from '../constants/zIndex';
 
 export interface ModalSheetHandle {
   open: (snapIndex?: number) => void;
@@ -14,39 +11,20 @@ export interface ModalSheetHandle {
 }
 
 export interface ModalSheetProps {
-  /** Fractions of screen height (0-1), any order — sorted internally. */
   snapPoints: number[];
-  /** Which sorted snap point to open at by default. Defaults to the largest. */
   initialSnapIndex?: number;
   onClose?: () => void;
-  /** Rendered above `children`; this is the ONLY draggable region — drag-to-close
-   *  only works here, so scrollable `children` (FlatList/ScrollView) is never
-   *  fought over between the sheet's own drag and the list's own scroll. */
   header?: React.ReactNode;
   children?: React.ReactNode;
   zIndex?: number;
   backgroundColor?: string;
 }
 
-/**
- * Shared bottom-sheet primitive for secondary/stacked sheets (queue, sleep
- * timer, menu) that open ON TOP of the native full-player sheet.
- *
- * The header's drag-to-close uses react-native-gesture-handler's
- * PanGestureHandler rather than PanResponder — it composes properly with
- * a NativeViewGestureHandler-wrapped FlatList/ScrollView inside `children`
- * (see QueueSheet/MenuSheet) via `simultaneousHandlers`, which is what
- * lets "scroll to top, then keep dragging closes it" work reliably instead
- * of the two gestures fighting over touch ownership.
- *
- * Still plain RN `Animated` (JS-driven, useNativeDriver: false) rather
- * than Reanimated — these are occasional modal opens, not a
- * continuously-interactive surface, so the simpler JS-thread animation
- * model is a fine tradeoff for not adding a second gesture/animation
- * library's worklet model into the mix.
- */
+const ANIMATION_DURATION = 260;
+const EASING = Easing.out(Easing.cubic);
+
 const ModalSheet = forwardRef<ModalSheetHandle, ModalSheetProps>(
-  ({snapPoints, initialSnapIndex, onClose, header, children, zIndex = 20, backgroundColor = '#161616'}, ref) => {
+  ({snapPoints, initialSnapIndex, onClose, header, children, zIndex = Z_INDEX.stackedSheets, backgroundColor = '#161616'}, ref) => {
     const {height: screenHeight} = useWindowDimensions();
     const sortedFractions = [...snapPoints].sort((a, b) => a - b);
     const maxFraction = sortedFractions[sortedFractions.length - 1];
@@ -56,70 +34,54 @@ const ModalSheet = forwardRef<ModalSheetHandle, ModalSheetProps>(
     const snapTranslations = sortedFractions.map(f => panelHeight - screenHeight * f);
     const hiddenTranslation = panelHeight;
     const defaultIndex = initialSnapIndex ?? sortedFractions.length - 1;
+    const closeDistance = hiddenTranslation - snapTranslations[0];
 
-    const translateY = useRef(new Animated.Value(hiddenTranslation)).current;
-    const currentTranslationRef = useRef(hiddenTranslation);
-    const dragStartRef = useRef(hiddenTranslation);
+    const translateY = useSharedValue(hiddenTranslation);
+    const dragStartY = useSharedValue(hiddenTranslation);
     const [isOpen, setIsOpen] = useState(false);
 
-    const animateTo = (target: number, onDone?: () => void) => {
-      Animated.timing(translateY, {
-        toValue: target,
-        duration: 260,
-        useNativeDriver: false,
-      }).start(() => {
-        currentTranslationRef.current = target;
-        onDone?.();
+    const finishClose = () => {
+      setIsOpen(false);
+      onClose?.();
+    };
+
+    const animateTo = (target: number, isClosing = false) => {
+      'worklet';
+      translateY.value = withTiming(target, {duration: ANIMATION_DURATION, easing: EASING}, finished => {
+        if (finished && isClosing) runOnJS(finishClose)();
       });
     };
 
     const open = (snapIndex: number = defaultIndex) => {
       setIsOpen(true);
       const clamped = Math.min(Math.max(snapIndex, 0), snapTranslations.length - 1);
-      animateTo(snapTranslations[clamped]);
+      translateY.value = hiddenTranslation;
+      requestAnimationFrame(() => animateTo(snapTranslations[clamped]));
     };
 
-    const close = () => {
-      animateTo(hiddenTranslation, () => {
-        setIsOpen(false);
-        onClose?.();
-      });
-    };
+    const close = () => animateTo(hiddenTranslation, true);
 
-    const snapTo = (index: number) => open(index);
+    const snapTo = (index: number) => animateTo(snapTranslations[Math.min(Math.max(index, 0), snapTranslations.length - 1)]);
 
     useImperativeHandle(ref, () => ({open, close, snapTo}));
 
-    const handleHeaderGestureEvent = (event: PanGestureHandlerGestureEvent) => {
-      const {translationY} = event.nativeEvent;
-      const next = dragStartRef.current + translationY;
-      const clamped = Math.min(Math.max(next, snapTranslations[0]), hiddenTranslation);
-      translateY.setValue(clamped);
-      currentTranslationRef.current = clamped;
-    };
-
-    const handleHeaderStateChange = (event: PanGestureHandlerStateChangeEvent) => {
-      const {state, translationY, velocityY} = event.nativeEvent;
-      if (state === State.BEGAN) {
-        dragStartRef.current = currentTranslationRef.current;
-        translateY.stopAnimation();
-        return;
-      }
-      if (state === State.END || state === State.CANCELLED) {
-        const finalValue = Math.min(
-          Math.max(dragStartRef.current + translationY, snapTranslations[0]),
-          hiddenTranslation,
-        );
-        const closeDistance = hiddenTranslation - snapTranslations[0];
-
+    const panGesture = Gesture.Pan()
+      .onStart(() => {
+        dragStartY.value = translateY.value;
+      })
+      .onUpdate(event => {
+        const next = dragStartY.value + event.translationY;
+        translateY.value = Math.min(Math.max(next, snapTranslations[0]), hiddenTranslation);
+      })
+      .onEnd(event => {
+        const finalValue = translateY.value;
         // Lowered thresholds (matching the native full-player sheet): a
         // quick, small flick down should close it, not require a large
-        // drag distance. velocityY here is px/second.
-        if (velocityY > 500 || finalValue - snapTranslations[0] > closeDistance * 0.2) {
-          close();
+        // drag distance.
+        if (event.velocityY > 500 || finalValue - snapTranslations[0] > closeDistance * 0.2) {
+          animateTo(hiddenTranslation, true);
           return;
         }
-
         let nearest = snapTranslations[0];
         let nearestDist = Math.abs(finalValue - nearest);
         for (const t of snapTranslations) {
@@ -129,40 +91,35 @@ const ModalSheet = forwardRef<ModalSheetHandle, ModalSheetProps>(
             nearestDist = d;
           }
         }
-        animateTo(nearest);
-      }
-    };
+        translateY.value = withTiming(nearest, {duration: ANIMATION_DURATION, easing: EASING});
+      })
+      .activeOffsetY([-10, 10])
+      .failOffsetX([-20, 20]);
+
+    const panelStyle = useAnimatedStyle(() => ({
+      transform: [{translateY: translateY.value}],
+    }));
+
+    const backdropStyle = useAnimatedStyle(() => {
+      const max = snapTranslations[snapTranslations.length - 1];
+      const range = hiddenTranslation - max || 1;
+      const progress = Math.max(0, Math.min(1, 1 - (translateY.value - max) / range));
+      return {opacity: progress * 0.55};
+    });
 
     if (!isOpen) return null;
-
-    const backdropOpacity = translateY.interpolate({
-      inputRange: [snapTranslations[snapTranslations.length - 1], hiddenTranslation],
-      outputRange: [0.55, 0],
-      extrapolate: 'clamp',
-    });
 
     return (
       <>
         <Pressable style={[StyleSheet.absoluteFill, {zIndex}]} onPress={close}>
-          <Animated.View style={[styles.backdrop, {opacity: backdropOpacity}]} />
+          <Animated.View style={[styles.backdrop, backdropStyle]} />
         </Pressable>
         <Animated.View
-          style={[
-            styles.panel,
-            {
-              height: panelHeight,
-              backgroundColor,
-              zIndex: zIndex + 1,
-              transform: [{translateY}],
-            },
-          ]}>
-          <PanGestureHandler
-            onGestureEvent={handleHeaderGestureEvent}
-            onHandlerStateChange={handleHeaderStateChange}
-            activeOffsetY={[-10, 10]}
-            failOffsetX={[-20, 20]}>
+          renderToHardwareTextureAndroid
+          style={[styles.panel, {height: panelHeight, backgroundColor, zIndex: zIndex + 1}, panelStyle]}>
+          <GestureDetector gesture={panGesture}>
             <View>{header}</View>
-          </PanGestureHandler>
+          </GestureDetector>
           {children}
         </Animated.View>
       </>
@@ -173,7 +130,7 @@ const ModalSheet = forwardRef<ModalSheetHandle, ModalSheetProps>(
 export default ModalSheet;
 
 const styles = StyleSheet.create({
-  backdrop: {...StyleSheet.absoluteFillObject, backgroundColor: '#000'},
+  backdrop: {...StyleSheet.absoluteFill, backgroundColor: '#000'},
   panel: {
     position: 'absolute',
     left: 0,
@@ -181,6 +138,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    overflow: 'hidden',
+    // Deliberately no overflow:'hidden' here — combined with borderRadius
+    // on an Animated.View that also carries a live `transform`, that forces
+    // the GPU to rebuild a clipped, rounded, animating surface every frame
+    // and is what caused the original Android RenderThread SIGSEGV crashes.
+    // Content (header + children) is padded well within these bounds so it
+    // doesn't visibly bleed past the rounded corners without clipping.
+    elevation: 16,
   },
 });

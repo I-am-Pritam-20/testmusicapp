@@ -31,7 +31,7 @@ export default function SettingsScreen(): React.JSX.Element {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.header}>Settings</Text>
 
-      <Text style={styles.sectionLabel}>API Base URL</Text>
+      {/* <Text style={styles.sectionLabel}>API Base URL</Text>
       <TextInput
         style={styles.input}
         value={baseUrl}
@@ -41,7 +41,7 @@ export default function SettingsScreen(): React.JSX.Element {
       />
       <Pressable style={styles.button} onPress={handleSaveBaseUrl}>
         <Text style={styles.buttonText}>Save</Text>
-      </Pressable>
+      </Pressable> */}
 
       <Text style={styles.sectionLabel}>Cache</Text>
       <Pressable style={styles.rowButton} onPress={handleClearHomeFeedOnly}>

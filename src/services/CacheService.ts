@@ -1,4 +1,4 @@
-import {MMKV} from 'react-native-mmkv';
+import {createMMKV } from 'react-native-mmkv';
 
 /**
  * Generic MMKV-backed cache with three independent retention policies:
@@ -11,7 +11,7 @@ import {MMKV} from 'react-native-mmkv';
  *    touches it.
  */
 
-const storage = new MMKV({id: 'musickit-cache'});
+const storage = createMMKV ({id: 'musickit-cache'});
 
 const HOME_FEED_KEY = 'home_feed_v1';
 const HOME_FEED_TTL_MS = 2 * 24 * 60 * 60 * 1000; // 2 days
@@ -53,7 +53,7 @@ export const CacheService = {
 
   /** Force a refresh regardless of TTL — call on pull-to-refresh. */
   invalidateHomeFeed(): void {
-    storage.delete(HOME_FEED_KEY);
+    storage.remove(HOME_FEED_KEY);
   },
 
   // --- Playback state (lifetime, restored on reopen) ---------------------
@@ -67,7 +67,7 @@ export const CacheService = {
   },
 
   clearPlaybackState(): void {
-    storage.delete(PLAYBACK_STATE_KEY);
+    storage.remove(PLAYBACK_STATE_KEY);
   },
 
   // --- Library (lifetime, independent of home feed refresh) --------------
@@ -81,7 +81,7 @@ export const CacheService = {
   },
 
   deleteLibraryItem(key: string): void {
-    storage.delete(LIBRARY_KEY_PREFIX + key);
+    storage.remove(LIBRARY_KEY_PREFIX + key);
   },
 
   /** Wipes everything — home feed, playback state, and library. Wire this

@@ -6,11 +6,18 @@ import type {AppTrack} from './trackMapper';
  * JioSaavn API has no accounts, so playlists/likes/follows have no
  * server-side counterpart at all. This is the sole source of truth for
  * them, independent of the home feed's 2-day cache.
+ *
+ * Online/offline playlist split: a playlist is created as either
+ * 'online' or 'offline' and can never hold tracks from the other world
+ * — see playlistTypeForTrack() and addTrackToPlaylist() below.
  */
+
+export type PlaylistType = 'online' | 'offline';
 
 export interface LocalPlaylist {
   id: string;
   name: string;
+  type: PlaylistType;
   createdAt: number;
   updatedAt: number;
   tracks: AppTrack[];
@@ -36,6 +43,14 @@ function generateId(): string {
   return `pl_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
+/** A track only ever belongs to one playlist "world": anything backed by
+ *  a real local file (device-scanned, or downloaded and re-tagged by
+ *  recordDownload below) is 'offline'; anything still streamed from
+ *  JioSaavn is 'online'. */
+export function playlistTypeForTrack(track: AppTrack): PlaylistType {
+  return track.sourceType === 'local' ? 'offline' : 'online';
+}
+
 export const LibraryService = {
   // --- Playlists -----------------------------------------------------------
 
@@ -43,14 +58,26 @@ export const LibraryService = {
     return CacheService.getLibraryItem<LocalPlaylist[]>(PLAYLISTS_KEY) ?? [];
   },
 
+  /** Playlists narrowed to one world — pass 'offline' while the device has
+   *  no connectivity so online-only playlists don't show as enterable. */
+  getPlaylistsByType(type: PlaylistType): LocalPlaylist[] {
+    return LibraryService.getPlaylists().filter(p => p.type === type);
+  },
+
   getPlaylist(id: string): LocalPlaylist | null {
     return LibraryService.getPlaylists().find(p => p.id === id) ?? null;
   },
 
-  createPlaylist(name: string): LocalPlaylist {
+  isDuplicatePlaylistName(name: string): boolean {
+    const trimmed = name.trim().toLowerCase();
+    return LibraryService.getPlaylists().some(p => p.name.trim().toLowerCase() === trimmed);
+  },
+
+  createPlaylist(name: string, type: PlaylistType): LocalPlaylist {
     const playlist: LocalPlaylist = {
       id: generateId(),
       name,
+      type,
       createdAt: Date.now(),
       updatedAt: Date.now(),
       tracks: [],
@@ -73,13 +100,20 @@ export const LibraryService = {
     );
   },
 
-  addTrackToPlaylist(id: string, track: AppTrack): void {
-    const playlists = LibraryService.getPlaylists().map(p => {
-      if (p.id !== id) return p;
-      if (p.tracks.some(t => t.id === track.id)) return p;
-      return {...p, tracks: [...p.tracks, track], updatedAt: Date.now()};
-    });
+  /** Returns false (no mutation) when the track's world doesn't match the
+   *  playlist's — an online JioSaavn track can never land inside an
+   *  offline playlist and vice versa. Call sites must check the return
+   *  value and surface a toast/alert rather than assuming success. */
+  addTrackToPlaylist(id: string, track: AppTrack): boolean {
+    const playlist = LibraryService.getPlaylist(id);
+    if (!playlist) return false;
+    if (playlistTypeForTrack(track) !== playlist.type) return false;
+    if (playlist.tracks.some(t => t.id === track.id)) return true; // already present, not an error
+    const playlists = LibraryService.getPlaylists().map(p =>
+      p.id === id ? {...p, tracks: [...p.tracks, track], updatedAt: Date.now()} : p,
+    );
     CacheService.setLibraryItem(PLAYLISTS_KEY, playlists);
+    return true;
   },
 
   removeTrackFromPlaylist(id: string, trackId: string): void {
@@ -138,9 +172,20 @@ export const LibraryService = {
     return LibraryService.getDownloads().some(t => t.id === id);
   },
 
+  /** Downloaded tracks are re-tagged sourceType:'local' and pointed at the
+   *  on-disk file — once downloaded, a song behaves exactly like a
+   *  device-scanned file: offline-eligible, shows up in offline
+   *  search/library, and can only join offline playlists. */
   recordDownload(track: AppTrack, localPath: string): void {
     const downloads = LibraryService.getDownloads().filter(t => t.id !== track.id);
-    CacheService.setLibraryItem(DOWNLOADS_KEY, [...downloads, {...track, localPath, downloadedAt: Date.now()}]);
+    const offlineTrack: DownloadedTrack = {
+      ...track,
+      sourceType: 'local',
+      url: localPath,
+      localPath,
+      downloadedAt: Date.now(),
+    };
+    CacheService.setLibraryItem(DOWNLOADS_KEY, [...downloads, offlineTrack]);
   },
 
   removeDownload(id: string): void {

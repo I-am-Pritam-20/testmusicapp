@@ -1,9 +1,12 @@
 import type {
   Album,
+  AlbumSearchResult,
   Artist,
+  ArtistSearchResult,
   GlobalSearchResult,
   PagedResult,
   Playlist,
+  PlaylistSearchResult,
   Song,
 } from './types';
 import {API_BASE_URL} from '@env';
@@ -17,7 +20,7 @@ import {API_BASE_URL} from '@env';
 // API_BASE_URL comes from .env at build time (react-native-dotenv) — see
 // env.d.ts for the type declaration and babel.config.js for the plugin
 // setup. Falls back to the public instance if .env is missing/empty.
-const DEFAULT_BASE_URL = API_BASE_URL || 'https://saavn.sumit.co';
+const DEFAULT_BASE_URL = API_BASE_URL || 'https://jio-saavan-api-test.vercel.app';
 
 let baseUrl = DEFAULT_BASE_URL;
 
@@ -84,15 +87,15 @@ export function searchSongs(query: string, page = 0, limit = 20): Promise<PagedR
   return apiGet('/api/search/songs', {query, page, limit});
 }
 
-export function searchAlbums(query: string, page = 0, limit = 20) {
+export function searchAlbums(query: string, page = 0, limit = 20): Promise<PagedResult<AlbumSearchResult>> {
   return apiGet('/api/search/albums', {query, page, limit});
 }
 
-export function searchArtists(query: string, page = 0, limit = 20) {
+export function searchArtists(query: string, page = 0, limit = 20): Promise<PagedResult<ArtistSearchResult>> {
   return apiGet('/api/search/artists', {query, page, limit});
 }
 
-export function searchPlaylists(query: string, page = 0, limit = 20) {
+export function searchPlaylists(query: string, page = 0, limit = 20): Promise<PagedResult<PlaylistSearchResult>> {
   return apiGet('/api/search/playlists', {query, page, limit});
 }
 

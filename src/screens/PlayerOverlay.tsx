@@ -11,8 +11,7 @@ import SleepTimerSheet, {type SleepTimerSheetHandle} from '../components/SleepTi
 import MenuSheet, {type MenuSheetHandle} from '../components/MenuSheet';
 import {LibraryService} from '../services/LibraryService';
 import {TAB_BAR_HEIGHT} from '../navigation/RootNavigator';
-
-const MINI_PLAYER_BOTTOM_GAP = 10;
+import {Z_INDEX} from '../constants/zIndex';
 
 /**
  * Persistent player UI, rendered as a sibling of the tab/stack navigator
@@ -26,7 +25,7 @@ export default function PlayerOverlay(): React.JSX.Element {
   const sleepTimerSheetRef = useRef<SleepTimerSheetHandle>(null);
   const menuSheetRef = useRef<MenuSheetHandle>(null);
   const insets = useSafeAreaInsets();
-  const {tracks, currentTrack, state} = usePlaybackQueue();
+  const {tracks, currentTrack, state, setFullPlayerOpen} = usePlaybackQueue();
 
   const isPlaying = state?.isPlaying ?? false;
 
@@ -44,13 +43,17 @@ export default function PlayerOverlay(): React.JSX.Element {
         artist={currentTrack?.artist ?? ''}
         artworkUrl={currentTrack?.artworkUrl}
         isPlaying={isPlaying}
-        insetBottom={TAB_BAR_HEIGHT + MINI_PLAYER_BOTTOM_GAP}
+        insetBottom={TAB_BAR_HEIGHT + insets.bottom}
         onPress={() => sheetRef.current?.expand()}
         onPlayPause={() => (isPlaying ? MusicPlayer.pause() : MusicPlayer.resume())}
         onNext={() => MusicPlayer.skipToNext()}
       />
 
-      <NativeBottomSheet ref={sheetRef} initialState="hidden" style={styles.sheet}>
+      <NativeBottomSheet
+        ref={sheetRef}
+        initialState="hidden"
+        style={styles.sheet}
+        onStateChange={s => setFullPlayerOpen(s === 'expanded')}>
         <FullPlayerScreen
           bgColor={currentTrack?.bgColor ?? '#141414'}
           title={currentTrack?.title ?? ''}
@@ -86,9 +89,10 @@ export default function PlayerOverlay(): React.JSX.Element {
         onPlayPause={() => (isPlaying ? MusicPlayer.pause() : MusicPlayer.resume())}
         onNext={() => MusicPlayer.skipToNext()}
         onPrevious={() => MusicPlayer.skipToPrevious()}
+        backgroundColor={currentTrack?.bgColor ?? '#000000'}
       />
 
-      <SleepTimerSheet ref={sleepTimerSheetRef} heightFraction={0.3} />
+      <SleepTimerSheet ref={sleepTimerSheetRef} heightFraction={0.45} />
 
       {/* Placeholder actions — wire "Add to Playlist" to a playlist picker
           once you're ready; the rest are simple stubs. */}
@@ -111,5 +115,5 @@ export default function PlayerOverlay(): React.JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  sheet: {zIndex: 10, elevation: 10},
+  sheet: {zIndex: Z_INDEX.fullPlayer, elevation: 16},
 });

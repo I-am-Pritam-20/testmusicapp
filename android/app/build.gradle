@@ -138,4 +138,5 @@ dependencies {
     //custom native implementation
     implementation(project(":media-core"))
     implementation(project(":native-bottom-sheet"))
+    implementation(project(":network-kit"))
 }

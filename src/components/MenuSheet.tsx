@@ -1,17 +1,14 @@
 import React, {forwardRef, useImperativeHandle, useRef} from 'react';
 import {Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
-import {
-  NativeViewGestureHandler,
-  PanGestureHandler,
-  State,
-  type PanGestureHandlerGestureEvent,
-  type PanGestureHandlerStateChangeEvent,
-} from 'react-native-gesture-handler';
+import {Gesture, GestureDetector} from 'react-native-gesture-handler';
+import Animated, {useAnimatedScrollHandler, useSharedValue} from 'react-native-reanimated';
 import Icon from '@react-native-vector-icons/material-design-icons';
+import type {MaterialDesignIconsIconName} from '@react-native-vector-icons/material-design-icons';
 import ModalSheet, {type ModalSheetHandle} from './ModalSheet';
+import {Z_INDEX} from '../constants/zIndex';
 
 export interface MenuOption {
-  icon: string;
+  icon: MaterialDesignIconsIconName;
   label: string;
   onPress: () => void;
 }
@@ -24,35 +21,43 @@ export interface MenuSheetHandle {
 export interface MenuSheetProps {
   /** Any order — sorted internally, largest opens by default. */
   snapFractions?: number[];
+  backgroundColor?: string;
   options: MenuOption[];
 }
 
+const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
+
 const MenuSheet = forwardRef<MenuSheetHandle, MenuSheetProps>(
-  ({snapFractions = [0.75, 0.5, 0.25], options}, ref) => {
+  ({snapFractions = [0.75, 0.5, 0.25], backgroundColor, options}, ref) => {
     const sheetRef = useRef<ModalSheetHandle>(null);
-    const scrollYRef = useRef(0);
-    const nativeGestureRef = useRef(null);
-    const panGestureRef = useRef(null);
+    const scrollY = useSharedValue(0);
 
     useImperativeHandle(ref, () => ({
       open: () => sheetRef.current?.open(),
       close: () => sheetRef.current?.close(),
     }));
 
-    const handleScrollPanEvent = (_event: PanGestureHandlerGestureEvent) => {};
+    const scrollHandler = useAnimatedScrollHandler(event => {
+      scrollY.value = event.contentOffset.y;
+    });
 
-    const handleScrollPanStateChange = (event: PanGestureHandlerStateChangeEvent) => {
-      const {state, translationY} = event.nativeEvent;
-      if (state === State.END && scrollYRef.current <= 0 && translationY > 60) {
-        sheetRef.current?.close();
-      }
-    };
+    const nativeGesture = Gesture.Native();
+    const dismissPan = Gesture.Pan()
+      .onEnd(event => {
+        if (scrollY.value <= 0 && event.translationY > 60) {
+          sheetRef.current?.close();
+        }
+      })
+      .activeOffsetY(10)
+      .failOffsetX([-20, 20]);
+    const composedGesture = Gesture.Simultaneous(nativeGesture, dismissPan);
 
     return (
       <ModalSheet
         ref={sheetRef}
         snapPoints={snapFractions}
-        zIndex={30}
+        zIndex={Z_INDEX.stackedSheets}
+        backgroundColor={backgroundColor}
         header={
           <View style={styles.headerRow}>
             <View style={styles.grabber} />
@@ -61,30 +66,18 @@ const MenuSheet = forwardRef<MenuSheetHandle, MenuSheetProps>(
             </Pressable>
           </View>
         }>
-        <PanGestureHandler
-          ref={panGestureRef}
-          simultaneousHandlers={nativeGestureRef}
-          onGestureEvent={handleScrollPanEvent}
-          onHandlerStateChange={handleScrollPanStateChange}
-          activeOffsetY={10}
-          failOffsetX={[-20, 20]}>
+        <GestureDetector gesture={composedGesture}>
           <View style={styles.scrollWrap}>
-            <NativeViewGestureHandler ref={nativeGestureRef} simultaneousHandlers={panGestureRef}>
-              <ScrollView
-                onScroll={e => {
-                  scrollYRef.current = e.nativeEvent.contentOffset.y;
-                }}
-                scrollEventThrottle={16}>
-                {options.map(opt => (
-                  <Pressable key={opt.label} style={styles.optionRow} onPress={opt.onPress}>
-                    <Icon name={opt.icon} color="#fff" size={22} />
-                    <Text style={styles.optionLabel}>{opt.label}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </NativeViewGestureHandler>
+            <AnimatedScrollView onScroll={scrollHandler} scrollEventThrottle={16}>
+              {options.map(opt => (
+                <Pressable key={opt.label} style={styles.optionRow} onPress={opt.onPress}>
+                  <Icon name={opt.icon} color="#fff" size={22} />
+                  <Text style={styles.optionLabel}>{opt.label}</Text>
+                </Pressable>
+              ))}
+            </AnimatedScrollView>
           </View>
-        </PanGestureHandler>
+        </GestureDetector>
       </ModalSheet>
     );
   },

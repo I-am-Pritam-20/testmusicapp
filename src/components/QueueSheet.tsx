@@ -1,14 +1,10 @@
 import React, {forwardRef, useImperativeHandle, useRef} from 'react';
-import {FlatList, Image, Pressable, StyleSheet, Text, View} from 'react-native';
-import {
-  NativeViewGestureHandler,
-  PanGestureHandler,
-  State,
-  type PanGestureHandlerGestureEvent,
-  type PanGestureHandlerStateChangeEvent,
-} from 'react-native-gesture-handler';
+import {Image, Pressable, StyleSheet, Text, View} from 'react-native';
+import {Gesture, GestureDetector} from 'react-native-gesture-handler';
+import Animated, {useAnimatedScrollHandler, useSharedValue} from 'react-native-reanimated';
 import Icon from '@react-native-vector-icons/material-design-icons';
 import ModalSheet, {type ModalSheetHandle} from './ModalSheet';
+import {Z_INDEX} from '../constants/zIndex';
 import type {AppTrack} from '../services/trackMapper';
 
 export interface QueueSheetHandle {
@@ -18,6 +14,7 @@ export interface QueueSheetHandle {
 
 export interface QueueSheetProps {
   heightFraction?: number;
+  backgroundColor?: string;
   queue: AppTrack[];
   currentTrackId: string | null;
   isPlaying: boolean;
@@ -27,22 +24,15 @@ export interface QueueSheetProps {
   onPrevious: () => void;
 }
 
-/**
- * Close behaviors: (1) drag the header area above the list, (2) the X
- * button, (3) tap the dimmed backdrop, (4) scroll the list to its top and
- * keep dragging down. All four are equally reliable now: the list is
- * wrapped in a NativeViewGestureHandler and cross-linked via
- * simultaneousHandlers with a PanGestureHandler, so both gestures are
- * recognized concurrently instead of fighting for ownership — the pan
- * only actually triggers a close on release, and only when the list was
- * already scrolled to scrollY<=0.
- */
+const AnimatedFlatList = Animated.createAnimatedComponent(require('react-native').FlatList);
+
 const QueueSheet = forwardRef<QueueSheetHandle, QueueSheetProps>(
-  ({heightFraction = 0.75, queue, currentTrackId, isPlaying, onSelectTrack, onPlayPause, onNext, onPrevious}, ref) => {
+  (
+    {heightFraction = 0.75, backgroundColor, queue, currentTrackId, isPlaying, onSelectTrack, onPlayPause, onNext, onPrevious},
+    ref,
+  ) => {
     const sheetRef = useRef<ModalSheetHandle>(null);
-    const scrollYRef = useRef(0);
-    const nativeGestureRef = useRef(null);
-    const panGestureRef = useRef(null);
+    const scrollY = useSharedValue(0);
 
     useImperativeHandle(ref, () => ({
       open: () => sheetRef.current?.open(),
@@ -51,23 +41,27 @@ const QueueSheet = forwardRef<QueueSheetHandle, QueueSheetProps>(
 
     const currentTrack = queue.find(t => t.id === currentTrackId) ?? null;
 
-    const handleListPanEvent = (_event: PanGestureHandlerGestureEvent) => {
-      // No live-follow needed here — see handleListPanStateChange, which
-      // acts only once the gesture ends.
-    };
+    const scrollHandler = useAnimatedScrollHandler(event => {
+      scrollY.value = event.contentOffset.y;
+    });
 
-    const handleListPanStateChange = (event: PanGestureHandlerStateChangeEvent) => {
-      const {state, translationY} = event.nativeEvent;
-      if (state === State.END && scrollYRef.current <= 0 && translationY > 60) {
-        sheetRef.current?.close();
-      }
-    };
+    const nativeGesture = Gesture.Native();
+    const dismissPan = Gesture.Pan()
+      .onEnd(event => {
+        if (scrollY.value <= 0 && event.translationY > 60) {
+          sheetRef.current?.close();
+        }
+      })
+      .activeOffsetY(10)
+      .failOffsetX([-20, 20]);
+    const composedGesture = Gesture.Simultaneous(nativeGesture, dismissPan);
 
     return (
       <ModalSheet
         ref={sheetRef}
         snapPoints={[heightFraction]}
-        zIndex={30}
+        zIndex={Z_INDEX.stackedSheets}
+        backgroundColor={backgroundColor}
         header={
           <View>
             <View style={styles.nowPlayingRow}>
@@ -102,47 +96,37 @@ const QueueSheet = forwardRef<QueueSheetHandle, QueueSheetProps>(
             </View>
           </View>
         }>
-        <PanGestureHandler
-          ref={panGestureRef}
-          simultaneousHandlers={nativeGestureRef}
-          onGestureEvent={handleListPanEvent}
-          onHandlerStateChange={handleListPanStateChange}
-          activeOffsetY={10}
-          failOffsetX={[-20, 20]}>
+        <GestureDetector gesture={composedGesture}>
           <View style={styles.listWrap}>
-            <NativeViewGestureHandler ref={nativeGestureRef} simultaneousHandlers={panGestureRef}>
-              <FlatList
-                data={queue}
-                keyExtractor={t => t.id}
-                onScroll={e => {
-                  scrollYRef.current = e.nativeEvent.contentOffset.y;
-                }}
-                scrollEventThrottle={16}
-                renderItem={({item, index}) => (
-                  <Pressable
-                    style={[styles.trackRow, item.id === currentTrackId && styles.trackRowActive]}
-                    onPress={() => onSelectTrack(index)}>
-                    {item.artworkUrl ? (
-                      <Image source={{uri: item.artworkUrl}} style={styles.rowArtwork} />
-                    ) : (
-                      <View style={[styles.rowArtwork, styles.artworkPlaceholder]} />
-                    )}
-                    <View style={styles.textBlock}>
-                      <Text
-                        style={[styles.rowTitle, item.id === currentTrackId && styles.rowTitleActive]}
-                        numberOfLines={1}>
-                        {item.title}
-                      </Text>
-                      <Text style={styles.rowArtist} numberOfLines={1}>
-                        {item.artist}
-                      </Text>
-                    </View>
-                  </Pressable>
-                )}
-              />
-            </NativeViewGestureHandler>
+            <AnimatedFlatList
+              data={queue}
+              keyExtractor={(t: AppTrack) => t.id}
+              onScroll={scrollHandler}
+              scrollEventThrottle={16}
+              renderItem={({item, index}: {item: AppTrack; index: number}) => (
+                <Pressable
+                  style={[styles.trackRow, item.id === currentTrackId && styles.trackRowActive]}
+                  onPress={() => onSelectTrack(index)}>
+                  {item.artworkUrl ? (
+                    <Image source={{uri: item.artworkUrl}} style={styles.rowArtwork} />
+                  ) : (
+                    <View style={[styles.rowArtwork, styles.artworkPlaceholder]} />
+                  )}
+                  <View style={styles.textBlock}>
+                    <Text
+                      style={[styles.rowTitle, item.id === currentTrackId && styles.rowTitleActive]}
+                      numberOfLines={1}>
+                      {item.title}
+                    </Text>
+                    <Text style={styles.rowArtist} numberOfLines={1}>
+                      {item.artist}
+                    </Text>
+                  </View>
+                </Pressable>
+              )}
+            />
           </View>
-        </PanGestureHandler>
+        </GestureDetector>
       </ModalSheet>
     );
   },

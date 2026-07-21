@@ -63,7 +63,7 @@ export default function FullPlayerScreen(props: FullPlayerScreenProps): React.JS
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.container, {paddingTop: insets.top, paddingBottom: insets.bottom}]}>
+    <View style={[styles.container, ]}>
       {/* Purely a visual background layer. LinearGradient's own measure/
           sizing behavior isn't reliable as a flex layout container (rows
           using justifyContent/parent width can collapse), so it never
@@ -73,15 +73,12 @@ export default function FullPlayerScreen(props: FullPlayerScreenProps): React.JS
         colors={[bgColor, '#000000']}
         start={{x: 0, y: 0}}
         end={{x: 0, y: 1}}
-        style={styles.gradientBackground}
-      />
-
-      {/* Tapping/dragging this handle collapses the sheet; the drag itself
-          is handled natively by NativeBottomSheet — this Pressable only
-          covers the "tap to collapse" case. */}
-      <Pressable style={styles.handleArea} onPress={onCollapse}>
-        <View style={styles.handle} />
-      </Pressable>
+        style={[styles.gradientBackground, 
+          {paddingTop: insets.top + 8,
+          paddingBottom: insets.bottom,
+          paddingHorizontal: 14
+        }]}
+      >
 
       <View style={styles.header}>
         <Icon name="chevron-down" color={'#fff'} size={32} onPress={onCollapse} />
@@ -147,16 +144,19 @@ export default function FullPlayerScreen(props: FullPlayerScreenProps): React.JS
           <Icon name="playlist-music" color={'#ffffffcc'} size={22} />
         </Pressable>
       </View>
+      </LinearGradient>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {flex: 1, paddingHorizontal: 16, paddingTop: 8},
-  gradientBackground: {
-    ...StyleSheet.absoluteFillObject,
+  container: {flex: 1, 
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    overflow: 'hidden'
+  },
+  gradientBackground: {
+    flex: 1,
   },
   handleArea: {alignItems: 'center', paddingVertical: 10},
   handle: {width: 36, height: 4, borderRadius: 2, backgroundColor: '#ffffff4d'},
@@ -180,14 +180,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 32,
+    marginTop: 8,
     paddingHorizontal: 8,
   },
   secondaryRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     gap: 32,
-    marginTop: 24,
+    marginTop: 16,
   },
   secondaryBtn: {padding: 8},
 });

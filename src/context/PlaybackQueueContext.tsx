@@ -30,6 +30,11 @@ interface PlaybackQueueContextValue {
   recentTrackIds: string[];
   playQueue: (tracks: AppTrack[], startIndex: number) => void;
   addToQueue: (track: AppTrack) => void;
+  /** Whether the full-player native sheet is currently expanded — set by
+   *  PlayerOverlay via setFullPlayerOpen, read by RootNavigator to hide
+   *  the tab bar while it's up. */
+  isFullPlayerOpen: boolean;
+  setFullPlayerOpen: (open: boolean) => void;
 }
 
 const PlaybackQueueContext = createContext<PlaybackQueueContextValue | null>(null);
@@ -44,6 +49,7 @@ export function PlaybackQueueProvider({children}: {children: React.ReactNode}): 
   const recentTrackIdsRef = useRef<string[]>([]);
   const hydratedRef = useRef(false);
   const lastTrackIdRef = useRef<string | null>(null);
+  const [isFullPlayerOpen, setFullPlayerOpen] = useState(false);
 
   useEffect(() => {
     tracksRef.current = tracks;
@@ -110,7 +116,8 @@ export function PlaybackQueueProvider({children}: {children: React.ReactNode}): 
   const currentTrack = tracks.find(t => t.id === state?.currentTrackId) ?? null;
 
   return (
-    <PlaybackQueueContext.Provider value={{tracks, currentTrack, state, recentTrackIds, playQueue, addToQueue}}>
+    <PlaybackQueueContext.Provider
+      value={{tracks, currentTrack, state, recentTrackIds, playQueue, addToQueue, isFullPlayerOpen, setFullPlayerOpen}}>
       {children}
     </PlaybackQueueContext.Provider>
   );

@@ -11,6 +11,8 @@ import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import com.facebook.react.defaults.DefaultReactNativeHost
 import com.musickit.bottomsheet.NativeBottomSheetPackage
 import com.musickit.mediacore.NativeMusicPlayerPackage
+import com.musickit.mediacore.DeviceLibraryPackage
+import com.musickit.network.NetworkReachabilityPackage
 
 class MainApplication : Application(), ReactApplication {
 
@@ -22,6 +24,8 @@ class MainApplication : Application(), ReactApplication {
               // add(MyReactNativePackage())
               add(NativeMusicPlayerPackage())
               add(NativeBottomSheetPackage())
+              add(DeviceLibraryPackage())
+              add(NetworkReachabilityPackage())
             }
 
         override fun getJSMainModuleName(): String = "index"
