@@ -1,6 +1,7 @@
 import React, {createContext, useCallback, useContext, useState} from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {Z_INDEX} from '../constants/zIndex';
+import {Colors} from '../theme/colors';
 
 export interface AppAlertButton {
   label: string;
@@ -52,6 +53,7 @@ export function AppAlertProvider({children}: {children: React.ReactNode}): React
                   <Text
                     style={[
                       styles.buttonText,
+                      (!button.style || button.style === 'default') && {color: Colors.accent},
                       button.style === 'destructive' && styles.destructiveText,
                       button.style === 'cancel' && styles.cancelText,
                     ]}>
@@ -86,7 +88,7 @@ const styles = StyleSheet.create({
   message: {color: '#ffffffcc', fontSize: 14, textAlign: 'center', marginBottom: 16, lineHeight: 20},
   buttonRow: {flexDirection: 'row', justifyContent: 'flex-end', gap: 20},
   button: {paddingVertical: 8, paddingHorizontal: 4},
-  buttonText: {color: '#1db954', fontWeight: '600', fontSize: 15},
+  buttonText: {fontWeight: '600', fontSize: 15},
   destructiveText: {color: '#ff453a'},
   cancelText: {color: '#ffffffcc'},
 });

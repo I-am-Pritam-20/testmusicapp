@@ -36,12 +36,18 @@ class NativeBottomSheetManager : ViewGroupManager<NativeBottomSheetView>() {
     view.setInitialState(initialState ?: "hidden")
   }
 
+  @ReactProp(name = "expandedHeightFraction", defaultFloat = 1f)
+  fun setExpandedHeightFraction(view: NativeBottomSheetView, fraction: Float) {
+    view.setExpandedHeightFraction(fraction.coerceIn(0.1f, 1f))
+  }
+
   override fun receiveCommand(root: NativeBottomSheetView, commandId: String, args: ReadableArray?) {
     when (commandId) {
       "expand" -> root.expand()
       "collapse" -> root.collapse()
       "hide" -> root.hide()
       "snapTo" -> root.snapTo(args?.getString(0) ?: "hidden")
+      "setDismissGestureEnabled" -> root.dismissGestureEnabled = args?.getBoolean(0) ?: true
     }
   }
 

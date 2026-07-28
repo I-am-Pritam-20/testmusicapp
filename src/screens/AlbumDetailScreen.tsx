@@ -6,6 +6,7 @@ import {getAlbum} from '../services/musicApi';
 import type {Album, ImageLink} from '../services/types';
 import {songsToTracks} from '../services/trackMapper';
 import {usePlaybackQueue} from '../context/PlaybackQueueContext';
+import {Colors} from '../theme/colors';
 
 type Route = RouteProp<RootStackParamList, 'AlbumDetail'>;
 
@@ -28,7 +29,7 @@ export default function AlbumDetailScreen(): React.JSX.Element {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator color="#1db954" />
+        <ActivityIndicator color={Colors.accent} />
       </View>
     );
   }
@@ -52,7 +53,7 @@ export default function AlbumDetailScreen(): React.JSX.Element {
           <Text style={styles.title}>{album.name}</Text>
           <Text style={styles.subtitle}>{album.artists?.primary?.map(a => a.name).join(', ')}</Text>
           {album.songs.length > 0 && (
-            <Pressable style={styles.playAllButton} onPress={() => playQueue(songsToTracks(album.songs), 0)}>
+            <Pressable style={[styles.playAllButton, {backgroundColor: Colors.accent}]} onPress={() => playQueue(songsToTracks(album.songs), 0)}>
               <Text style={styles.playAllText}>Play</Text>
             </Pressable>
           )}
@@ -81,7 +82,7 @@ const styles = StyleSheet.create({
   artwork: {width: 200, height: 200, borderRadius: 8, backgroundColor: '#222'},
   title: {color: '#fff', fontSize: 20, fontWeight: '700', marginTop: 14, textAlign: 'center'},
   subtitle: {color: '#ffffffb3', marginTop: 4, textAlign: 'center'},
-  playAllButton: {marginTop: 16, backgroundColor: '#1db954', borderRadius: 20, paddingVertical: 10, paddingHorizontal: 32},
+  playAllButton: {marginTop: 16, borderRadius: 20, paddingVertical: 10, paddingHorizontal: 32},
   playAllText: {color: '#000', fontWeight: '700'},
   songRow: {paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#ffffff14'},
   songTitle: {color: '#fff'},

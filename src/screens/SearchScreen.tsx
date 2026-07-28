@@ -9,6 +9,7 @@ import {DeviceLibraryService} from '../services/DeviceLibraryService';
 import {LibraryService} from '../services/LibraryService';
 import {usePlaybackQueue} from '../context/PlaybackQueueContext';
 import {useNetworkStatus} from '../components/NetworkStatusProvider';
+import {Colors, getContrastText} from '../theme/colors';
 import type {
   AlbumSearchResult,
   ArtistSearchResult,
@@ -198,15 +199,21 @@ export default function SearchScreen(): React.JSX.Element {
         {FILTERS.map(f => (
           <Pressable
             key={f.key}
-            style={[styles.pill, filter === f.key && styles.pillActive]}
+            style={[styles.pill, filter === f.key && [styles.pillActive, {backgroundColor: Colors.accent, borderColor: Colors.accent}]]}
             onPress={() => handleFilterChange(f.key)}>
-            <Text style={[styles.pillText, filter === f.key && styles.pillTextActive]}>{f.label}</Text>
+            <Text
+              style={[
+                styles.pillText,
+                filter === f.key && [styles.pillTextActive, {color: getContrastText(Colors.accent)}],
+              ]}>
+              {f.label}
+            </Text>
           </Pressable>
         ))}
       </View>
 
       {loading ? (
-        <ActivityIndicator color="#1db954" style={styles.loading} />
+        <ActivityIndicator color={Colors.accent} style={styles.loading} />
       ) : showOfflineOnlyHint ? (
         <Text style={styles.offlineHint}>
           {FILTERS.find(f => f.key === filter)?.label} need an internet connection — try Songs for what's downloaded
@@ -325,9 +332,9 @@ const styles = StyleSheet.create({
   },
   pillsRow: {flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 16, marginTop: 12},
   pill: {paddingVertical: 6, paddingHorizontal: 14, borderRadius: 16, borderWidth: 1, borderColor: '#ffffff33'},
-  pillActive: {backgroundColor: '#1db954', borderColor: '#1db954'},
+  pillActive: {},
   pillText: {color: '#ffffffb3', fontSize: 13},
-  pillTextActive: {color: '#000', fontWeight: '700'},
+  pillTextActive: {fontWeight: '700'},
   loading: {marginTop: 32},
   offlineHint: {color: '#ffffff80', fontSize: 13, textAlign: 'center', marginTop: 32, paddingHorizontal: 32, lineHeight: 18},
   list: {paddingHorizontal: 16, paddingTop: 12, paddingBottom: 140},
@@ -340,6 +347,9 @@ const styles = StyleSheet.create({
   resultSubtitle: {color: '#ffffff80', fontSize: 12, marginTop: 2},
   sourceDot: {width: 9, height: 9, borderRadius: 4.5},
   sourceDotLocal: {backgroundColor: '#8a8a8a'},
-  sourceDotOnline: {backgroundColor: '#1db954'},
+  // Deliberately its own fixed semantic color (green = online/connected is
+  // a standard, brand-independent convention), not the app's accent token
+  // — but a distinct shade from Spotify's own brand hex, not that exact one.
+  sourceDotOnline: {backgroundColor: '#2ECC71'},
   emptyText: {color: '#ffffff80', textAlign: 'center', marginTop: 32},
 });

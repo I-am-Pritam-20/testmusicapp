@@ -3,9 +3,13 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" /><uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <!-- Required for WidgetIdleService foreground service on API 34+ -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
 
     <application
       android:name=".MainApplication"
@@ -27,5 +31,66 @@
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
       </activity>
+      <service
+          android:name="com.musickit.mediacore.PlaybackService"
+          android:foregroundServiceType="mediaPlayback"
+          android:exported="true">
+          <intent-filter>
+              <action android:name="androidx.media3.session.MediaSessionService" />
+          </intent-filter>
+      </service>
+
+      <!-- ── Widget receiver ─────────────────────────────────────────────── -->
+      <receiver
+          android:name=".widget.PlayerWidget"
+          android:exported="true"
+          android:label="@string/app_name">
+          <intent-filter>
+              <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+              <action android:name="com.testmusicapp.widget.PLAY_PAUSE" />
+              <action android:name="com.testmusicapp.widget.NEXT" />
+              <action android:name="com.testmusicapp.widget.PREV" />
+              <action android:name="com.testmusicapp.widget.SHUFFLE" />
+              <action android:name="com.testmusicapp.widget.REPEAT" />
+          </intent-filter>
+          <meta-data
+              android:name="android.appwidget.provider"
+              android:resource="@xml/player_widget_info" />
+      </receiver>
+
+      <!-- Handles widget button dispatches -->
+      <service
+          android:name=".widget.WidgetActionService"
+          android:exported="false" />
+
+      <!--
+          WidgetIdleService — minimal foreground service active ONLY when the
+          widget is pinned to the home screen. CPU usage <= 1%: no polling,
+          purely event-driven. Keeps the widget responsive without the full
+          Media3 PlaybackService running.
+
+          foregroundServiceType="specialUse" is required on API 34+ for
+          foreground services that don't fit the standard media/location/etc
+          categories.
+      -->
+      <service
+          android:name=".widget.WidgetIdleService"
+          android:exported="false"
+          android:foregroundServiceType="specialUse"
+          android:stopWithTask="false">
+          <property
+              android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+              android:value="Music widget responsiveness — keeps widget controls working" />
+      </service>
+
+      <!-- Boot receiver — restores widget + idle service state after reboot -->
+      <receiver
+          android:name=".widget.WidgetBootReceiver"
+          android:exported="true">
+          <intent-filter android:priority="100">
+              <action android:name="android.intent.action.BOOT_COMPLETED" />
+              <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+          </intent-filter>
+      </receiver>
     </application>
 </manifest>

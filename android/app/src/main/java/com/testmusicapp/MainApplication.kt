@@ -13,6 +13,8 @@ import com.musickit.bottomsheet.NativeBottomSheetPackage
 import com.musickit.mediacore.NativeMusicPlayerPackage
 import com.musickit.mediacore.DeviceLibraryPackage
 import com.musickit.network.NetworkReachabilityPackage
+import com.testmusicapp.widget.WidgetBridgePackage
+import com.testmusicapp.AudioFocusPackage
 
 class MainApplication : Application(), ReactApplication {
 
@@ -26,6 +28,8 @@ class MainApplication : Application(), ReactApplication {
               add(NativeBottomSheetPackage())
               add(DeviceLibraryPackage())
               add(NetworkReachabilityPackage())
+              add(WidgetBridgePackage())
+              add(AudioFocusPackage())
             }
 
         override fun getJSMainModuleName(): String = "index"

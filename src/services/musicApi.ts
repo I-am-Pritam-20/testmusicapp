@@ -20,7 +20,7 @@ import {API_BASE_URL} from '@env';
 // API_BASE_URL comes from .env at build time (react-native-dotenv) — see
 // env.d.ts for the type declaration and babel.config.js for the plugin
 // setup. Falls back to the public instance if .env is missing/empty.
-const DEFAULT_BASE_URL = API_BASE_URL || 'https://jio-saavan-api-test.vercel.app';
+const DEFAULT_BASE_URL = API_BASE_URL || 'https://saavn.sumit.co';
 
 let baseUrl = DEFAULT_BASE_URL;
 

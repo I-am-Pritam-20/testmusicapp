@@ -7,6 +7,7 @@ import type {Artist, ImageLink} from '../services/types';
 import {songsToTracks} from '../services/trackMapper';
 import {usePlaybackQueue} from '../context/PlaybackQueueContext';
 import {LibraryService} from '../services/LibraryService';
+import {Colors} from '../theme/colors';
 
 type Route = RouteProp<RootStackParamList, 'ArtistDetail'>;
 
@@ -43,7 +44,7 @@ export default function ArtistDetailScreen(): React.JSX.Element {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator color="#1db954" />
+        <ActivityIndicator color={Colors.accent} />
       </View>
     );
   }
@@ -65,7 +66,12 @@ export default function ArtistDetailScreen(): React.JSX.Element {
         <View style={styles.headerBlock}>
           <Image source={{uri: bestImage(artist.image)}} style={styles.artwork} />
           <Text style={styles.title}>{artist.name}</Text>
-          <Pressable style={[styles.followButton, following && styles.followButtonActive]} onPress={handleToggleFollow}>
+          <Pressable
+            style={[
+              styles.followButton,
+              following && [styles.followButtonActive, {backgroundColor: Colors.accent, borderColor: Colors.accent}],
+            ]}
+            onPress={handleToggleFollow}>
             <Text style={[styles.followText, following && styles.followTextActive]}>
               {following ? 'Following' : 'Follow'}
             </Text>
@@ -100,7 +106,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 24,
   },
-  followButtonActive: {backgroundColor: '#1db954', borderColor: '#1db954'},
+  followButtonActive: {},
   followText: {color: '#fff', fontWeight: '600'},
   followTextActive: {color: '#000'},
   sectionHeading: {color: '#fff', fontSize: 16, fontWeight: '700', alignSelf: 'flex-start', marginTop: 24},

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Single drawable handles both the unfilled track (background) and filled progress.
+  Using a layer-list avoids setting android:background on ProgressBar, which is
+  not supported in RemoteViews and causes InflateException in release builds.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Unfilled track layer -->
+    <item android:id="@android:id/background">
+        <shape android:shape="rectangle">
+            <corners android:radius="60dp" />
+            <solid android:color="#33FFFFFF" />
+        </shape>
+    </item>
+
+    <!-- Filled progress layer -->
+    <item android:id="@android:id/progress">
+        <clip>
+            <shape android:shape="rectangle">
+                <corners android:radius="60dp" />
+                <solid android:color="#FFFFFFFF" />
+            </shape>
+        </clip>
+    </item>
+
+</layer-list>

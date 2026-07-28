@@ -8,6 +8,7 @@ import {usePlaybackQueue} from '../context/PlaybackQueueContext';
 import {useAppAlert} from '../components/AppAlertProvider';
 import {useNetworkStatus} from '../components/NetworkStatusProvider';
 import {ensureAudioPermission} from '../native-kit/permissions';
+import {Colors, getContrastText} from '../theme/colors';
 import type {AppTrack} from '../services/trackMapper';
 
 /**
@@ -81,13 +82,16 @@ export default function OfflineHomeScreen(): React.JSX.Element {
           </Text>
 
           <View style={styles.actionsRow}>
-            <Pressable style={styles.primaryBtn} onPress={handleAddFolder} disabled={busy}>
+            <Pressable
+              style={[styles.primaryBtn, {backgroundColor: Colors.accent}]}
+              onPress={handleAddFolder}
+              disabled={busy}>
               {busy ? (
-                <ActivityIndicator color="#04120a" size="small" />
+                <ActivityIndicator color={getContrastText(Colors.accent)} size="small" />
               ) : (
                 <>
-                  <Icon name="folder-music-outline" color="#04120a" size={18} />
-                  <Text style={styles.primaryBtnLabel}>Device Songs</Text>
+                  <Icon name="folder-music-outline" color={getContrastText(Colors.accent)} size={18} />
+                  <Text style={[styles.primaryBtnLabel, {color: getContrastText(Colors.accent)}]}>Device Songs</Text>
                 </>
               )}
             </Pressable>
@@ -148,12 +152,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#1db954',
     borderRadius: 24,
     paddingVertical: 10,
     paddingHorizontal: 16,
   },
-  primaryBtnLabel: {color: '#04120a', fontSize: 13, fontWeight: '700'},
+  primaryBtnLabel: {fontSize: 13, fontWeight: '700'},
   secondaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',

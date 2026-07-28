@@ -37,17 +37,7 @@ export default function PlayerOverlay(): React.JSX.Element {
 
   return (
     <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-      <MiniPlayerBar
-        bgColor={currentTrack?.bgColor ?? '#161616'}
-        title={currentTrack?.title ?? ''}
-        artist={currentTrack?.artist ?? ''}
-        artworkUrl={currentTrack?.artworkUrl}
-        isPlaying={isPlaying}
-        insetBottom={TAB_BAR_HEIGHT + insets.bottom}
-        onPress={() => sheetRef.current?.expand()}
-        onPlayPause={() => (isPlaying ? MusicPlayer.pause() : MusicPlayer.resume())}
-        onNext={() => MusicPlayer.skipToNext()}
-      />
+      <MiniPlayerBar bottomOffset={TAB_BAR_HEIGHT + insets.bottom} onExpand={() => sheetRef.current?.expand()} />
 
       <NativeBottomSheet
         ref={sheetRef}
@@ -71,6 +61,8 @@ export default function PlayerOverlay(): React.JSX.Element {
           onNext={() => MusicPlayer.skipToNext()}
           onPrevious={() => MusicPlayer.skipToPrevious()}
           onSeek={ms => MusicPlayer.seekTo(ms)}
+          onSeekStart={() => sheetRef.current?.setDismissGestureEnabled(false)}
+          onSeekEnd={() => sheetRef.current?.setDismissGestureEnabled(true)}
           onToggleShuffle={() => MusicPlayer.setShuffleEnabled(!(state?.isShuffleEnabled ?? false))}
           onCycleRepeat={handleRepeatCycle}
           onOpenQueue={() => queueSheetRef.current?.open()}

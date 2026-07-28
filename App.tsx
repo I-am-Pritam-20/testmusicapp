@@ -17,7 +17,7 @@ function ThemedStatusBar(): React.JSX.Element {
   const tokens = useAppearanceTokens();
   return (
     <StatusBar
-      barStyle={tokens.isDark ? 'light-content' : 'dark-content'}
+      barStyle={tokens.textPrimary === '#111111' ? 'dark-content' : 'light-content'}
       backgroundColor={tokens.topBarBg}
     />
   );

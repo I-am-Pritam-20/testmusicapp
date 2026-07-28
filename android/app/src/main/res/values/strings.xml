@@ -1,3 +1,15 @@
 <resources>
     <string name="app_name">TestMusicApp</string>
+    <string name="widget_description">Test player widget</string>
+    <string name="repeat">Repeat</string>
+    <string name="next">Next</string>
+    <string name="play_pause">Play/Pause</string>
+    <string name="previous">Previous</string>
+    <string name="shuffle">Shuffle</string>
+    <string name="default_title">No Songs Playing</string>
+    <string name="default_artist">Unknown Artist</string>
+    <string name="default_start_time">0:00</string>
+    <string name="default_end_time">0:00</string>
+    <string name="artwork">artwork</string>
+    <string name="app_icon">app_icon</string>
 </resources>

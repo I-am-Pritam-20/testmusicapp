@@ -4,6 +4,7 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import SeekBar from './SeekBar';
 import Icon from '@react-native-vector-icons/material-design-icons';
+import {Colors} from '../theme/colors';
 
 export interface FullPlayerScreenProps {
   bgColor: string;
@@ -20,6 +21,8 @@ export interface FullPlayerScreenProps {
   onNext: () => void;
   onPrevious: () => void;
   onSeek: (positionMs: number) => void;
+  onSeekStart?: () => void;
+  onSeekEnd?: () => void;
   onToggleShuffle: () => void;
   onCycleRepeat: () => void;
   onOpenQueue: () => void;
@@ -52,6 +55,8 @@ export default function FullPlayerScreen(props: FullPlayerScreenProps): React.JS
     onNext,
     onPrevious,
     onSeek,
+    onSeekStart,
+    onSeekEnd,
     onToggleShuffle,
     onCycleRepeat,
     onOpenQueue,
@@ -104,11 +109,17 @@ export default function FullPlayerScreen(props: FullPlayerScreenProps): React.JS
           </Text>
         </View>
         <Pressable hitSlop={12} onPress={onToggleLiked}>
-          <Icon name={isLiked ? 'heart' : 'heart-outline'} color={isLiked ? '#1db954' : '#ffffffcc'} size={26} />
+          <Icon name={isLiked ? 'heart' : 'heart-outline'} color={isLiked ? Colors.accent : '#ffffffcc'} size={26} />
         </Pressable>
       </View>
 
-      <SeekBar positionMs={positionMs} durationMs={durationMs} onSeek={onSeek} />
+      <SeekBar
+        positionMs={positionMs}
+        durationMs={durationMs}
+        onSeek={onSeek}
+        onSeekStart={onSeekStart}
+        onSeekEnd={onSeekEnd}
+      />
       <View style={styles.timeRow}>
         <Text style={styles.timeText}>{formatTime(positionMs)}</Text>
         <Text style={styles.timeText}>{formatTime(durationMs)}</Text>

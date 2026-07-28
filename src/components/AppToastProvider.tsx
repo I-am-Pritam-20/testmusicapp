@@ -4,6 +4,7 @@ import Animated, {useAnimatedStyle, useSharedValue, withTiming} from 'react-nati
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Z_INDEX} from '../constants/zIndex';
 import {useAppearanceTokens} from '../context/AppearanceContext';
+import {Colors} from '../theme/colors';
 
 export interface ToastOptions {
   /** Toasts sharing an id replace each other (e.g. network status) rather
@@ -107,7 +108,7 @@ export function AppToastProvider({children}: {children: React.ReactNode}): React
                   current.onAction?.();
                   hideToast(current.id);
                 }}>
-                <Text style={[styles.action, {color: tokens.accent}]}>{current.actionLabel}</Text>
+                <Text style={[styles.action, {color: Colors.accent}]}>{current.actionLabel}</Text>
               </Pressable>
             )}
           </View>
@@ -146,6 +147,6 @@ const styles = StyleSheet.create({
   },
   message: {color: '#fff', flex: 1, fontSize: 14},
   actions: {flexDirection: 'row', alignItems: 'center', gap: 16},
-  action: {color: '#1db954', fontWeight: '700', fontSize: 14},
+  action: {fontWeight: '700', fontSize: 14},
   secondaryAction: {color: '#9a9a9a', fontWeight: '600', fontSize: 14},
 });

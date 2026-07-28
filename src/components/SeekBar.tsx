@@ -5,9 +5,16 @@ export interface SeekBarProps {
   positionMs: number;
   durationMs: number;
   onSeek: (positionMs: number) => void;
+  /** Fires the instant a touch lands on the bar (tap or the start of a
+   *  drag) and again the instant it's released — the parent full-player
+   *  sheet uses these to disable its own native drag-to-close gesture
+   *  for the duration, since a slightly-off-horizontal seek drag would
+   *  otherwise sometimes get misread as a sheet-dismiss swipe. */
+  onSeekStart?: () => void;
+  onSeekEnd?: () => void;
 }
 
-export default function SeekBar({positionMs, durationMs, onSeek}: SeekBarProps): React.JSX.Element {
+export default function SeekBar({positionMs, durationMs, onSeek, onSeekStart, onSeekEnd}: SeekBarProps): React.JSX.Element {
   const [trackWidth, setTrackWidth] = useState(0);
   const [dragRatio, setDragRatio] = useState<number | null>(null);
   const trackWidthRef = useRef(0);
@@ -22,6 +29,11 @@ export default function SeekBar({positionMs, durationMs, onSeek}: SeekBarProps):
         onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: () => true,
         onPanResponderGrant: evt => {
+          // Fires on the very first touch-down, before any drag distance
+          // has accumulated — this is deliberately as early as possible
+          // so the parent sheet's own gesture is disabled before there's
+          // enough movement for it to consider claiming the touch itself.
+          onSeekStart?.();
           const width = trackWidthRef.current;
           const x = evt.nativeEvent.locationX;
           touchStartXRef.current = x;
@@ -40,10 +52,14 @@ export default function SeekBar({positionMs, durationMs, onSeek}: SeekBarProps):
             if (current != null) onSeek(current * durationMs);
             return null;
           });
+          onSeekEnd?.();
         },
-        onPanResponderTerminate: () => setDragRatio(null),
+        onPanResponderTerminate: () => {
+          setDragRatio(null);
+          onSeekEnd?.();
+        },
       }),
-    [durationMs, onSeek],
+    [durationMs, onSeek, onSeekStart, onSeekEnd],
   );
 
   return (

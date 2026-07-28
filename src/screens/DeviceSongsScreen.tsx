@@ -8,6 +8,7 @@ import {usePlaybackQueue} from '../context/PlaybackQueueContext';
 import {useAppAlert} from '../components/AppAlertProvider';
 import {useAppToast} from '../components/AppToastProvider';
 import {ensureAudioPermission} from '../native-kit/permissions';
+import {Colors, getContrastText} from '../theme/colors';
 import type {AppTrack} from '../services/trackMapper';
 
 export default function DeviceSongsScreen(): React.JSX.Element {
@@ -102,10 +103,12 @@ export default function DeviceSongsScreen(): React.JSX.Element {
               <Text style={styles.addFolderText}>Add Folder</Text>
             </Pressable>
             <Pressable
-              style={[styles.scanBtn, folders.length === 0 && styles.scanBtnDisabled]}
+              style={[styles.scanBtn, {backgroundColor: Colors.accent}, folders.length === 0 && styles.scanBtnDisabled]}
               disabled={folders.length === 0 || scanning}
               onPress={handleScan}>
-              <Text style={styles.scanText}>{scanning ? 'Scanning…' : 'Scan'}</Text>
+              <Text style={[styles.scanText, {color: getContrastText(Colors.accent)}]}>
+                {scanning ? 'Scanning…' : 'Scan'}
+              </Text>
             </Pressable>
           </View>
 
@@ -155,9 +158,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   addFolderText: {color: '#fff', fontWeight: '600'},
-  scanBtn: {backgroundColor: '#1db954', borderRadius: 20, paddingVertical: 8, paddingHorizontal: 24, justifyContent: 'center'},
+  scanBtn: {borderRadius: 20, paddingVertical: 8, paddingHorizontal: 24, justifyContent: 'center'},
   scanBtnDisabled: {opacity: 0.4},
-  scanText: {color: '#000', fontWeight: '700'},
+  scanText: {fontWeight: '700'},
   songsHeading: {color: '#fff', fontSize: 15, fontWeight: '700', marginBottom: 8},
   songRow: {flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8},
   songThumb: {width: 44, height: 44, borderRadius: 6, backgroundColor: '#222'},

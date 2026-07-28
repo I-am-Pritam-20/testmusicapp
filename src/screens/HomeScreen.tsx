@@ -6,6 +6,7 @@ import type {RootStackParamList} from '../navigation/RootNavigator';
 import {getHomeFeed, refreshHomeFeed, type HomeSection} from '../services/homeFeed';
 import {songsToTracks} from '../services/trackMapper';
 import {usePlaybackQueue} from '../context/PlaybackQueueContext';
+import {Colors} from '../theme/colors';
 import type {AlbumSearchResult, ArtistSearchResult, ImageLink, PlaylistSearchResult, Song} from '../services/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -56,7 +57,7 @@ export default function HomeScreen(): React.JSX.Element {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator color="#1db954" size="large" />
+        <ActivityIndicator color={Colors.accent} size="large" />
       </View>
     );
   }
@@ -67,7 +68,7 @@ export default function HomeScreen(): React.JSX.Element {
       contentContainerStyle={styles.content}
       data={sections}
       keyExtractor={s => s.id}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1db954" />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} />}
       ListHeaderComponent={<Text style={styles.header}>Good day</Text>}
       renderItem={({item: section}) => (
         <View style={styles.section}>

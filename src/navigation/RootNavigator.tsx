@@ -14,10 +14,9 @@ import DeviceSongsScreen from '../screens/DeviceSongsScreen';
 import FollowedArtistsScreen from '../screens/FollowedArtistsScreen';
 import DownloadsScreen from '../screens/DownloadsScreen';
 import OfflineHomeScreen from '../screens/OfflineHomeScreen';
-import {usePlaybackQueue} from '../context/PlaybackQueueContext';
+import PillTabBar from '../components/PillTabBar';
 import {useNetworkStatus} from '../components/NetworkStatusProvider';
 import {useAppearanceTokens} from '../context/AppearanceContext';
-import {Z_INDEX} from '../constants/zIndex';
 
 export type RootStackParamList = {
   Tabs: undefined;
@@ -37,15 +36,13 @@ export type TabParamList = {
   Settings: undefined;
 };
 
-export const TAB_BAR_HEIGHT = 60;
+export const TAB_BAR_HEIGHT = 68;
 
 const Tab = createBottomTabNavigator<TabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function Tabs(): React.JSX.Element {
-  const {isFullPlayerOpen} = usePlaybackQueue();
   const {viewMode} = useNetworkStatus();
-  const tokens = useAppearanceTokens();
   const [resetKeys, setResetKeys] = useState({home: 0, library: 0, settings: 0});
 
   const resetOnDirectPress = (tab: keyof typeof resetKeys) => ({
@@ -56,41 +53,32 @@ function Tabs(): React.JSX.Element {
 
   return (
     <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: isFullPlayerOpen
-          ? {display: 'none'}
-          : {
-              backgroundColor: tokens.tabNavBg,
-              borderTopColor: '#222',
-              height: TAB_BAR_HEIGHT,
-              zIndex: Z_INDEX.chrome,
-              elevation: Z_INDEX.chrome,
-            },
-        tabBarActiveTintColor: tokens.accent,
-        tabBarInactiveTintColor: tokens.textMuted,
-      }}>
+      tabBar={props => <PillTabBar {...props} />}
+      screenOptions={{headerShown: false}}>
       <Tab.Screen
         name="Home"
         listeners={resetOnDirectPress('home')}
-        options={{tabBarIcon: ({color, size}) => <Icon name="home" color={color} size={size} />}}>
+        options={{title: 'Home', tabBarIcon: ({color, size}) => <Icon name="home" color={color} size={size} />}}>
         {() => (viewMode === 'offline' ? <OfflineHomeScreen key={resetKeys.home} /> : <HomeScreen key={resetKeys.home} />)}
       </Tab.Screen>
       <Tab.Screen
         name="Search"
         component={SearchScreen}
-        options={{tabBarIcon: ({color, size}) => <Icon name="magnify" color={color} size={size} />}}
+        options={{title: 'Search', tabBarIcon: ({color, size}) => <Icon name="magnify" color={color} size={size} />}}
       />
       <Tab.Screen
         name="Library"
         listeners={resetOnDirectPress('library')}
-        options={{tabBarIcon: ({color, size}) => <Icon name="music-box-multiple" color={color} size={size} />}}>
+        options={{
+          title: 'Library',
+          tabBarIcon: ({color, size}) => <Icon name="music-box-multiple" color={color} size={size} />,
+        }}>
         {() => <LibraryScreen key={resetKeys.library} />}
       </Tab.Screen>
       <Tab.Screen
         name="Settings"
         listeners={resetOnDirectPress('settings')}
-        options={{tabBarIcon: ({color, size}) => <Icon name="cog" color={color} size={size} />}}>
+        options={{title: 'Settings', tabBarIcon: ({color, size}) => <Icon name="cog" color={color} size={size} />}}>
         {() => <SettingsScreen key={resetKeys.settings} />}
       </Tab.Screen>
     </Tab.Navigator>

@@ -1,5 +1,8 @@
 import React, {createContext, useContext, useEffect, useRef, useState} from 'react';
+import {Platform, PermissionsAndroid} from 'react-native';
 import MusicPlayer, {type PlaybackStateEvent, type RepeatMode} from '../native-kit/MusicPlayer';
+import WidgetBridge from '../native-kit/WidgetBridge';
+import AudioFocus from '../native-kit/AudioFocus';
 import {CacheService} from '../services/CacheService';
 import type {AppTrack} from '../services/trackMapper';
 
@@ -57,7 +60,11 @@ export function PlaybackQueueProvider({children}: {children: React.ReactNode}): 
 
   // Restore the last session once on mount. setQueue() would normally
   // auto-play, so we immediately pause — the goal is "ready to resume
-  // exactly where you left off", not "blast audio on launch".
+  // exactly where you left off", not "blast audio on launch". Seeking
+  // has to wait until the player has actually finished loading the
+  // track (status leaves 'buffering') rather than after a fixed delay —
+  // a race between a guessed timeout and real buffering time, especially
+  // variable for a local file vs. a cold network fetch.
   useEffect(() => {
     const persisted = CacheService.getPlaybackState<PersistedPlaybackState>();
     if (persisted && persisted.tracks.length > 0) {
@@ -66,11 +73,16 @@ export function PlaybackQueueProvider({children}: {children: React.ReactNode}): 
       MusicPlayer.pause();
       if (persisted.isShuffleEnabled) MusicPlayer.setShuffleEnabled(true);
       if (persisted.repeatMode !== 'off') MusicPlayer.setRepeatMode(persisted.repeatMode);
-      // Rough edge: seeking right after setQueue races the player's own
-      // buffering — a fixed delay is a pragmatic v1, not a guarantee.
-      // Listening for the track to actually be ready before seeking would
-      // be the more robust follow-up.
-      setTimeout(() => MusicPlayer.seekTo(persisted.positionMs), 300);
+
+      const unsubscribeReady = MusicPlayer.onPlaybackState(readyState => {
+        if (readyState.status === 'buffering') return;
+        MusicPlayer.seekTo(persisted.positionMs);
+        unsubscribeReady();
+      });
+
+      WidgetBridge.getInitialAction().then(action => {
+        if (action === 'com.testmusicapp.WIDGET_PLAY_RESUME') MusicPlayer.resume();
+      });
     }
     hydratedRef.current = true;
   }, []);
@@ -103,6 +115,91 @@ export function PlaybackQueueProvider({children}: {children: React.ReactNode}): 
     return unsubscribe;
   }, []);
 
+  const currentTrack = tracks.find(t => t.id === state?.currentTrackId) ?? null;
+
+  // Push state to the home-screen widget on every change, and relay its
+  // button taps back as real playback actions. Artwork is passed through
+  // untouched — WidgetBridge itself drops it if it isn't in a format the
+  // native side can actually decode (a remote streaming URL, notably).
+  useEffect(() => {
+    WidgetBridge.startListening();
+
+    const unsubscribers = [
+      WidgetBridge.subscribe('widgetPlayPause', () => {
+        if (state?.isPlaying) MusicPlayer.pause();
+        else MusicPlayer.resume();
+      }),
+      WidgetBridge.subscribe('widgetSkipNext', () => MusicPlayer.skipToNext()),
+      WidgetBridge.subscribe('widgetSkipPrev', () => MusicPlayer.skipToPrevious()),
+      WidgetBridge.subscribe('widgetShuffleToggle', () => {
+        MusicPlayer.setShuffleEnabled(!state?.isShuffleEnabled);
+      }),
+      WidgetBridge.subscribe('widgetRepeatCycle', () => {
+        const next: RepeatMode =
+          state?.repeatMode === 'off' ? 'one' : state?.repeatMode === 'one' ? 'once' : 'off';
+        MusicPlayer.setRepeatMode(next);
+      }),
+      WidgetBridge.subscribe('widgetRemoved', () => {
+        MusicPlayer.pause();
+      }),
+    ];
+
+    return () => {
+      unsubscribers.forEach(unsub => unsub());
+      WidgetBridge.stopListening();
+    };
+    // Deliberately re-subscribing on every state change so the closures
+    // above always see the latest isPlaying/isShuffleEnabled/repeatMode —
+    // WidgetBridge.startListening()/stopListening() are cheap no-ops when
+    // already in the desired state, so this isn't as wasteful as it looks.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state?.isPlaying, state?.isShuffleEnabled, state?.repeatMode]);
+
+  useEffect(() => {
+    if (!state) return;
+    WidgetBridge.update({
+      title: currentTrack?.title,
+      artist: currentTrack?.artist,
+      artworkPath: currentTrack?.artworkUrl,
+      isPlaying: state.isPlaying,
+      isShuffle: state.isShuffleEnabled,
+      repeatMode: state.repeatMode === 'once' ? 'all' : (state.repeatMode as 'off' | 'one'),
+      progress: state.durationMs > 0 ? state.positionMs / state.durationMs : 0,
+      durationSec: Math.round(state.durationMs / 1000),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, currentTrack?.id]);
+
+  // Notification permission — the playback notification itself depends on
+  // this on Android 13+, so it's requested once here rather than only
+  // when the user happens to touch a feature (device scanning) that
+  // needs a permission of its own.
+  useEffect(() => {
+    if (Platform.OS === 'android' && Platform.Version >= 33) {
+      PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS).catch(() => {});
+    }
+  }, []);
+
+  // Audio focus — started once on mount, not tied to playback state (it
+  // needs to be listening even before anything has ever played, so a
+  // call from a competing app right at launch is still handled).
+  useEffect(() => {
+    AudioFocus.startListening();
+    const unsubscribers = [
+      AudioFocus.onLost(() => MusicPlayer.pause()),
+      AudioFocus.onTransientLoss(() => MusicPlayer.pause()),
+      AudioFocus.onGain(({resume}) => {
+        if (resume) MusicPlayer.resume();
+      }),
+      // onDuck needs no handler at all — the native side lowers the
+      // stream volume directly; there's nothing for JS to do.
+    ];
+    return () => {
+      unsubscribers.forEach(unsub => unsub());
+      AudioFocus.stopListening();
+    };
+  }, []);
+
   const playQueue = (newTracks: AppTrack[], startIndex: number) => {
     setTracks(newTracks);
     MusicPlayer.setQueue(newTracks, startIndex);
@@ -112,8 +209,6 @@ export function PlaybackQueueProvider({children}: {children: React.ReactNode}): 
     setTracks(prev => [...prev, track]);
     MusicPlayer.addToQueue(track);
   };
-
-  const currentTrack = tracks.find(t => t.id === state?.currentTrackId) ?? null;
 
   return (
     <PlaybackQueueContext.Provider

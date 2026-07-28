@@ -13,14 +13,18 @@ import android.widget.FrameLayout
 import kotlin.math.abs
 
 /**
- * A self-contained, RN-agnostic full-screen sheet container that slides
- * between fully HIDDEN (translated off the bottom of the screen) and
- * fully EXPANDED (covering the whole screen).
+ * A self-contained, RN-agnostic sheet container that slides between
+ * fully HIDDEN (translated off the bottom of the screen) and EXPANDED
+ * (its configured height, from the bottom — the full screen by default,
+ * or a fraction of it via expandedHeightFraction, so the exact same
+ * native view serves the full player, Queue, Sleep Timer, the context
+ * menu, and Create Playlist alike — one implementation, reused by
+ * whatever RN children are passed in as content).
  *
  * Opening only ever happens via expand(), called from JS (tapping a
- * separately-rendered mini player) — there is no drag-to-open. Closing
- * can happen either via hide()/collapse() from JS (a button/handle tap),
- * OR via a drag gesture while already EXPANDED — see the touch-handling
+ * separately-rendered mini player, or a menu action). Closing can
+ * happen either via hide()/collapse() from JS (a button/handle tap), OR
+ * via a drag gesture while already EXPANDED — see the touch-handling
  * section below for how that's scoped to avoid interfering with normal
  * taps and the seek bar's horizontal drag.
  *
@@ -37,6 +41,29 @@ class NativeBottomSheetView(context: Context, attrs: AttributeSet? = null) :
   enum class SheetState { HIDDEN, EXPANDED }
 
   var onStateChange: ((SheetState) -> Unit)? = null
+  /** Fraction (0-1] of the view's own height that counts as "expanded" —
+   *  1f (default) means full screen, like the original full-player-only
+   *  behavior. 0.45f means the sheet only rises 45% of the way up,
+   *  leaving the rest as backdrop over the screen behind it. */
+  var expandedHeightFraction: Float = 1f
+    private set
+
+  fun setExpandedHeightFraction(fraction: Float) {
+    if (fraction == expandedHeightFraction) return
+    expandedHeightFraction = fraction
+    if (laidOut && state == SheetState.EXPANDED) {
+      animateTo(expandedTranslationY(), SheetState.EXPANDED)
+    }
+  }
+
+  /** When a sheet contains its own scrollable content (the queue list),
+   *  JS disables this while that content isn't scrolled to the top —
+   *  otherwise a downward drag partway through the list is ambiguous
+   *  between "scroll the list up" and "drag the sheet closed", and
+   *  Android's touch dispatch would let this view win that race before
+   *  the nested list ever gets a chance to claim it for itself. Sheets
+   *  with no meaningful internal scrolling just leave this true always. */
+  var dismissGestureEnabled: Boolean = true
 
   private var state: SheetState = SheetState.HIDDEN
   private var pendingCommand: SheetState = SheetState.HIDDEN
@@ -87,8 +114,12 @@ class NativeBottomSheetView(context: Context, attrs: AttributeSet? = null) :
   private fun parseState(name: String): SheetState =
       if (name == "expanded") SheetState.EXPANDED else SheetState.HIDDEN
 
+  /** Where translationY sits when fully expanded — 0 (top of this view)
+   *  for the full-height default, or partway down for a shorter sheet. */
+  private fun expandedTranslationY(): Float = height.toFloat() * (1f - expandedHeightFraction)
+
   private fun targetTranslationFor(target: SheetState): Float =
-      if (target == SheetState.EXPANDED) 0f else height.toFloat()
+      if (target == SheetState.EXPANDED) expandedTranslationY() else height.toFloat()
 
   private fun applyState(target: SheetState, animate: Boolean) {
     val targetY = targetTranslationFor(target)
@@ -129,7 +160,7 @@ class NativeBottomSheetView(context: Context, attrs: AttributeSet? = null) :
   // swipe-down-to-close gesture from anywhere else on the sheet.
 
   override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
-    if (state != SheetState.EXPANDED) return false
+    if (state != SheetState.EXPANDED || !dismissGestureEnabled) return false
     when (ev.actionMasked) {
       MotionEvent.ACTION_DOWN -> {
         downX = ev.rawX
@@ -154,6 +185,8 @@ class NativeBottomSheetView(context: Context, attrs: AttributeSet? = null) :
     if (velocityTracker == null) velocityTracker = VelocityTracker.obtain()
     velocityTracker?.addMovement(ev)
 
+    val expandedY = expandedTranslationY()
+
     when (ev.actionMasked) {
       MotionEvent.ACTION_MOVE -> {
         if (!dragging) {
@@ -162,14 +195,15 @@ class NativeBottomSheetView(context: Context, attrs: AttributeSet? = null) :
         }
         if (dragging) {
           val dy = ev.rawY - downY
-          translationY = (startTranslationY + dy).coerceIn(0f, height.toFloat())
+          translationY = (startTranslationY + dy).coerceIn(expandedY, height.toFloat())
         }
       }
       MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
         if (dragging) {
           velocityTracker?.computeCurrentVelocity(1000)
           val velocityY = velocityTracker?.yVelocity ?: 0f
-          val progress = if (height > 0) translationY / height else 0f
+          val sheetOwnHeight = (height.toFloat() - expandedY).coerceAtLeast(1f)
+          val progress = (translationY - expandedY) / sheetOwnHeight
           // Lowered thresholds: a quick, small flick should close it, not
           // require a large drag distance.
           val target = if (velocityY > 400f || progress > 0.2f) SheetState.HIDDEN else SheetState.EXPANDED
