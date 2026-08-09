@@ -8,6 +8,7 @@ import {songsToTracks} from '../services/trackMapper';
 import {usePlaybackQueue} from '../context/PlaybackQueueContext';
 import {LibraryService} from '../services/LibraryService';
 import {Colors} from '../theme/colors';
+import {useAppearanceTokens} from '../context/AppearanceContext';
 
 type Route = RouteProp<RootStackParamList, 'ArtistDetail'>;
 
@@ -16,6 +17,7 @@ function bestImage(images: ImageLink[] | undefined): string | undefined {
 }
 
 export default function ArtistDetailScreen(): React.JSX.Element {
+  const tokens = useAppearanceTokens();
   const {params} = useRoute<Route>();
   const {playQueue} = usePlaybackQueue();
   const [artist, setArtist] = useState<Artist | null>(null);
@@ -58,7 +60,7 @@ export default function ArtistDetailScreen(): React.JSX.Element {
 
   return (
     <FlatList
-      style={styles.container}
+      style={[styles.container, {backgroundColor: tokens.bg}]}
       contentContainerStyle={styles.content}
       data={artist.topSongs}
       keyExtractor={s => s.id}

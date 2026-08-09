@@ -4,10 +4,12 @@ import {useFocusEffect, useNavigation} from '@react-navigation/native';
 import type {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import type {RootStackParamList} from '../navigation/RootNavigator';
 import {LibraryService, type LikedArtist} from '../services/LibraryService';
+import {useAppearanceTokens} from '../context/AppearanceContext';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export default function FollowedArtistsScreen(): React.JSX.Element {
+  const tokens = useAppearanceTokens();
   const navigation = useNavigation<Nav>();
   const [artists, setArtists] = useState<LikedArtist[]>([]);
 
@@ -19,7 +21,7 @@ export default function FollowedArtistsScreen(): React.JSX.Element {
 
   return (
     <FlatList
-      style={styles.container}
+      style={[styles.container, {backgroundColor: tokens.bg}]}
       contentContainerStyle={styles.content}
       data={artists}
       keyExtractor={a => a.id}

@@ -7,6 +7,7 @@ import {getHomeFeed, refreshHomeFeed, type HomeSection} from '../services/homeFe
 import {songsToTracks} from '../services/trackMapper';
 import {usePlaybackQueue} from '../context/PlaybackQueueContext';
 import {Colors} from '../theme/colors';
+import {useAppearanceTokens} from '../context/AppearanceContext';
 import type {AlbumSearchResult, ArtistSearchResult, ImageLink, PlaylistSearchResult, Song} from '../services/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -16,6 +17,7 @@ function bestImage(images: ImageLink[] | undefined): string | undefined {
 }
 
 export default function HomeScreen(): React.JSX.Element {
+  const tokens = useAppearanceTokens();
   const navigation = useNavigation<Nav>();
   const {recentTrackIds, playQueue} = usePlaybackQueue();
   const [sections, setSections] = useState<HomeSection[]>([]);
@@ -64,7 +66,7 @@ export default function HomeScreen(): React.JSX.Element {
 
   return (
     <FlatList
-      style={styles.container}
+      style={[styles.container, {backgroundColor: tokens.bg}]}
       contentContainerStyle={styles.content}
       data={sections}
       keyExtractor={s => s.id}

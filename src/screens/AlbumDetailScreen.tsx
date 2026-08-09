@@ -7,6 +7,7 @@ import type {Album, ImageLink} from '../services/types';
 import {songsToTracks} from '../services/trackMapper';
 import {usePlaybackQueue} from '../context/PlaybackQueueContext';
 import {Colors} from '../theme/colors';
+import {useAppearanceTokens} from '../context/AppearanceContext';
 
 type Route = RouteProp<RootStackParamList, 'AlbumDetail'>;
 
@@ -15,6 +16,7 @@ function bestImage(images: ImageLink[] | undefined): string | undefined {
 }
 
 export default function AlbumDetailScreen(): React.JSX.Element {
+  const tokens = useAppearanceTokens();
   const {params} = useRoute<Route>();
   const {playQueue} = usePlaybackQueue();
   const [album, setAlbum] = useState<Album | null>(null);
@@ -43,7 +45,7 @@ export default function AlbumDetailScreen(): React.JSX.Element {
 
   return (
     <FlatList
-      style={styles.container}
+      style={[styles.container, {backgroundColor: tokens.bg}]}
       contentContainerStyle={styles.content}
       data={album.songs}
       keyExtractor={s => s.id}

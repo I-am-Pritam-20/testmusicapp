@@ -9,9 +9,11 @@ import {useAppAlert} from '../components/AppAlertProvider';
 import {useAppToast} from '../components/AppToastProvider';
 import {ensureAudioPermission} from '../native-kit/permissions';
 import {Colors, getContrastText} from '../theme/colors';
+import {useAppearanceTokens} from '../context/AppearanceContext';
 import type {AppTrack} from '../services/trackMapper';
 
 export default function DeviceSongsScreen(): React.JSX.Element {
+  const tokens = useAppearanceTokens();
   const {playQueue} = usePlaybackQueue();
   const {showAlert} = useAppAlert();
   const {showToast} = useAppToast();
@@ -76,7 +78,7 @@ export default function DeviceSongsScreen(): React.JSX.Element {
 
   return (
     <FlatList
-      style={styles.container}
+      style={[styles.container, {backgroundColor: tokens.bg}]}
       contentContainerStyle={styles.content}
       data={files}
       keyExtractor={f => f.id}

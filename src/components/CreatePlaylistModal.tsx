@@ -25,6 +25,7 @@ const EXPANDED_FRACTION = 0.6;
  */
 const CreatePlaylistModal = forwardRef<CreatePlaylistModalHandle, CreatePlaylistModalProps>(({onCreated}, ref) => {
   const sheetRef = React.useRef<NativeBottomSheetHandle>(null);
+  const nameInputRef = React.useRef<TextInput>(null);
   const [name, setName] = useState('');
   const [type, setType] = useState<PlaylistType>('online');
   const [activeFraction, setActiveFraction] = useState(BASE_FRACTION);
@@ -35,6 +36,7 @@ const CreatePlaylistModal = forwardRef<CreatePlaylistModalHandle, CreatePlaylist
       setType(defaultType);
       setActiveFraction(BASE_FRACTION);
       sheetRef.current?.expand();
+      setTimeout(() => nameInputRef.current?.focus(), 150);
     },
   }));
 
@@ -65,12 +67,12 @@ const CreatePlaylistModal = forwardRef<CreatePlaylistModalHandle, CreatePlaylist
         <Text style={styles.title}>New Playlist</Text>
 
         <TextInput
+          ref={nameInputRef}
           style={styles.input}
           placeholder="Playlist name"
           placeholderTextColor="#8a8a8a"
           value={name}
           onChangeText={setName}
-          autoFocus
           maxLength={60}
         />
         {isDuplicate && trimmedName.length > 0 && (

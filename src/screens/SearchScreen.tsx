@@ -10,6 +10,7 @@ import {LibraryService} from '../services/LibraryService';
 import {usePlaybackQueue} from '../context/PlaybackQueueContext';
 import {useNetworkStatus} from '../components/NetworkStatusProvider';
 import {Colors, getContrastText} from '../theme/colors';
+import {useAppearanceTokens} from '../context/AppearanceContext';
 import type {
   AlbumSearchResult,
   ArtistSearchResult,
@@ -80,6 +81,7 @@ function SourceDot({source}: {source: 'local' | 'online'}): React.JSX.Element {
 }
 
 export default function SearchScreen(): React.JSX.Element {
+  const tokens = useAppearanceTokens();
   const navigation = useNavigation<Nav>();
   const {playQueue} = usePlaybackQueue();
   const {viewMode} = useNetworkStatus();
@@ -187,7 +189,7 @@ export default function SearchScreen(): React.JSX.Element {
   const showOfflineOnlyHint = isOffline && (filter === 'albums' || filter === 'artists' || filter === 'playlists');
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, {backgroundColor: tokens.bg}]}>
       <TextInput
         style={styles.searchInput}
         placeholder={isOffline ? 'Search downloaded & device songs' : 'Search songs, albums, artists, playlists'}

@@ -8,10 +8,12 @@ import {LibraryService, type LocalPlaylist} from '../services/LibraryService';
 import {useAppAlert} from '../components/AppAlertProvider';
 import {useNetworkStatus} from '../components/NetworkStatusProvider';
 import CreatePlaylistModal, {type CreatePlaylistModalHandle} from '../components/CreatePlaylistModal';
+import {useAppearanceTokens} from '../context/AppearanceContext';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export default function LibraryScreen(): React.JSX.Element {
+  const tokens = useAppearanceTokens();
   const navigation = useNavigation<Nav>();
   const {showAlert} = useAppAlert();
   const {viewMode} = useNetworkStatus();
@@ -50,7 +52,7 @@ export default function LibraryScreen(): React.JSX.Element {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, {backgroundColor: tokens.bg}]}>
       <FlatList
         contentContainerStyle={styles.content}
         data={playlists}

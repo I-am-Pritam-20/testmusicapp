@@ -1,3 +1,13 @@
+/**
+ * Design tokens ported directly from inotuneoffline's real theme.ts — a
+ * single fixed dark palette, not the 10-mode system an earlier pass in
+ * this project mistakenly built from a prose description. Dynamic,
+ * per-song color (the actual "dominant color UI" feature) is a separate,
+ * additive layer on top of this — see AppearanceContext.tsx — applied
+ * only to player surfaces, matching how Spotify-style apps do it: the
+ * app chrome stays on a stable palette, only the Now Playing surfaces
+ * shift with the artwork.
+ */
 export const Colors = {
   // Backgrounds
   bg: '#0A0A0F',

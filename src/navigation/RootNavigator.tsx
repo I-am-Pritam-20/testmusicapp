@@ -16,7 +16,6 @@ import DownloadsScreen from '../screens/DownloadsScreen';
 import OfflineHomeScreen from '../screens/OfflineHomeScreen';
 import PillTabBar from '../components/PillTabBar';
 import {useNetworkStatus} from '../components/NetworkStatusProvider';
-import {useAppearanceTokens} from '../context/AppearanceContext';
 
 export type RootStackParamList = {
   Tabs: undefined;
@@ -87,10 +86,9 @@ function Tabs(): React.JSX.Element {
 
 export default function RootNavigator(): React.JSX.Element {
   const [hasLeftTabs, setHasLeftTabs] = useState(false);
-  const tokens = useAppearanceTokens();
 
   return (
-    <Stack.Navigator screenOptions={{headerStyle: {backgroundColor: tokens.topBarBg}, headerTintColor: tokens.textPrimary}}>
+    <Stack.Navigator screenOptions={{headerShown: false}}>
       <Stack.Screen
         name="Tabs"
         component={Tabs}

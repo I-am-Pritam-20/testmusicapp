@@ -6,9 +6,11 @@ import {LibraryService, type DownloadedTrack} from '../services/LibraryService';
 import {usePlaybackQueue} from '../context/PlaybackQueueContext';
 import MusicPlayer from '../native-kit/MusicPlayer';
 import {useAppAlert} from '../components/AppAlertProvider';
+import {useAppearanceTokens} from '../context/AppearanceContext';
 import {useAppToast} from '../components/AppToastProvider';
 
 export default function DownloadsScreen(): React.JSX.Element {
+  const tokens = useAppearanceTokens();
   const {playQueue} = usePlaybackQueue();
   const {showAlert} = useAppAlert();
   const {showToast} = useAppToast();
@@ -49,7 +51,7 @@ export default function DownloadsScreen(): React.JSX.Element {
 
   return (
     <FlatList
-      style={styles.container}
+      style={[styles.container, {backgroundColor: tokens.bg}]}
       contentContainerStyle={styles.content}
       data={downloads}
       keyExtractor={t => t.id}

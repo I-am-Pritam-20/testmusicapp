@@ -9,6 +9,7 @@ import {useAppAlert} from '../components/AppAlertProvider';
 import {useNetworkStatus} from '../components/NetworkStatusProvider';
 import {ensureAudioPermission} from '../native-kit/permissions';
 import {Colors, getContrastText} from '../theme/colors';
+import {useAppearanceTokens} from '../context/AppearanceContext';
 import type {AppTrack} from '../services/trackMapper';
 
 /**
@@ -19,6 +20,7 @@ import type {AppTrack} from '../services/trackMapper';
  * songs, deduped by id.
  */
 export default function OfflineHomeScreen(): React.JSX.Element {
+  const tokens = useAppearanceTokens();
   const {playQueue} = usePlaybackQueue();
   const {showAlert} = useAppAlert();
   const {recheck, status} = useNetworkStatus();
@@ -64,7 +66,7 @@ export default function OfflineHomeScreen(): React.JSX.Element {
 
   return (
     <FlatList
-      style={styles.container}
+      style={[styles.container, {backgroundColor: tokens.bg}]}
       contentContainerStyle={styles.content}
       data={tracks}
       keyExtractor={t => t.id}

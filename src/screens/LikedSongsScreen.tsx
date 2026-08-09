@@ -3,9 +3,11 @@ import {FlatList, Image, Pressable, StyleSheet, Text, View} from 'react-native';
 import {useFocusEffect} from '@react-navigation/native';
 import {LibraryService} from '../services/LibraryService';
 import {usePlaybackQueue} from '../context/PlaybackQueueContext';
+import {useAppearanceTokens} from '../context/AppearanceContext';
 import type {AppTrack} from '../services/trackMapper';
 
 export default function LikedSongsScreen(): React.JSX.Element {
+  const tokens = useAppearanceTokens();
   const {playQueue} = usePlaybackQueue();
   const [tracks, setTracks] = useState<AppTrack[]>([]);
 
@@ -17,7 +19,7 @@ export default function LikedSongsScreen(): React.JSX.Element {
 
   return (
     <FlatList
-      style={styles.container}
+      style={[styles.container, {backgroundColor: tokens.bg}]}
       contentContainerStyle={styles.content}
       data={tracks}
       keyExtractor={t => t.id}
