@@ -182,7 +182,7 @@ class WidgetBridgeModule(private val reactContext: ReactApplicationContext)
     }
 
     @ReactMethod fun addListener(eventName: String) {}
-    @ReactMethod fun removeListeners(count: Int) {}
+    @ReactMethod fun removeListeners(count: Double) {}
 
     private fun ReadableMap.safeString(key: String): String? =
         if (hasKey(key) && !isNull(key)) getString(key) else null

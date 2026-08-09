@@ -64,7 +64,19 @@ jobs:
           sed -i "s/versionName .*/versionName \"${{ env.VERSION_NAME }}\"/" android/app/build.gradle
           echo "Injected: ${{ env.VERSION_NAME }} (${{ env.VERSION_CODE }})"
 
-      # ── 8. Build Debug APK ───────────────────────────────────────────────────
+      # ── 8. Generate React Native Codegen ───────────────────────────────────────────────────
+      - name: Generate React Native Codegen
+        working-directory: android
+        run: ./gradlew generateCodegenArtifactsFromSchema --no-daemon
+
+      # ── 9. Inspect generated Codegen ───────────────────────────────────────────────────
+      - name: Inspect generated Codegen
+        shell: bash
+        run: | 
+          echo "=== ALL Codegen-generated files ==="
+          find android -path "*/build/generated/*" -type f | sort || true
+
+      # ── 10. Build Debug APK ───────────────────────────────────────────────────
       - name: Build Debug APK
         run: |
           cd android
@@ -73,7 +85,7 @@ jobs:
             --warning-mode=none \
             -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m"
 
-      # ── 9. Rename APK ────────────────────────────────────────────────────────
+      # ── 11. Rename APK ────────────────────────────────────────────────────────
       - name: Rename APK
         run: |
           SHORT_SHA="${GITHUB_SHA:0:7}"
@@ -84,7 +96,7 @@ jobs:
           echo "APK_NAME=${APK_NAME}" >> $GITHUB_ENV
           echo "Built: ${APK_NAME}"
 
-      # ── 10. Upload artifact (expires in 1 day) ───────────────────────────────
+      # ── 12. Upload artifact (expires in 1 day) ───────────────────────────────
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
@@ -92,7 +104,7 @@ jobs:
           path: android/app/build/outputs/apk/debug/*.apk
           retention-days: 1
 
-      # ── 11. Clean everything ─────────────────────────────────────────────────
+      # ── 13. Clean everything ─────────────────────────────────────────────────
       - name: Clean caches and build outputs
         if: always()
         run: |
@@ -104,7 +116,7 @@ jobs:
           rm -rf node_modules
           echo "All Gradle caches, build outputs, and node_modules removed"
 
-      # ── 12. Summary ──────────────────────────────────────────────────────────
+      # ── 14. Summary ──────────────────────────────────────────────────────────
       - name: Build summary
         if: success()
         run: |

@@ -1,5 +1,6 @@
 import type {TurboModule} from 'react-native';
 import {TurboModuleRegistry} from 'react-native';
+import { Double } from 'react-native/Libraries/Types/CodegenTypes';
 
 export interface Spec extends TurboModule {
   /** Action string of the Intent that launched MainActivity, or null for a
@@ -19,7 +20,7 @@ export interface Spec extends TurboModule {
   stopListeningToWidgetActions(): void;
 
   addListener(eventName: string): void;
-  removeListeners(count: number): void;
+  removeListeners(count: Double): void;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>('InoWidgetBridge');

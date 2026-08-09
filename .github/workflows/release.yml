@@ -90,7 +90,19 @@ jobs:
           sed -i "s/versionName .*/versionName \"${{ github.event.inputs.version_name }}\"/" android/app/build.gradle
           echo "Injected: ${{ github.event.inputs.version_name }} (${{ github.event.inputs.version_code }})"
 
-      # ── 8. Build Release APK ─────────────────────────────────────────────────
+      # ── 8. Generate React Native Codegen ───────────────────────────────────────────────────
+      - name: Generate React Native Codegen
+        working-directory: android
+        run: ./gradlew generateCodegenArtifactsFromSchema --no-daemon
+
+      # ── 9. Inspect generated Codegen ───────────────────────────────────────────────────
+      - name: Inspect generated Codegen
+        shell: bash
+        run: | 
+          echo "=== ALL Codegen-generated files ==="
+          find android -path "*/build/generated/*" -type f | sort || true
+
+      # ── 10. Build Debug APK ───────────────────────────────────────────────────
       # Signed:   build.gradle reads keystore.properties → signingConfigs.release
       # Unsigned: keystore.properties absent → signingConfigs.debug fallback
       - name: Build Release APK
@@ -101,7 +113,7 @@ jobs:
             --warning-mode=none \
             -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m"
 
-      # ── 9. Build AAB (signed only) ────────────────────────────────────────────
+      # ── 11. Build AAB (signed only) ────────────────────────────────────────────
       - name: Build Release AAB
         if: env.SIGNED == 'true'
         run: |
@@ -111,7 +123,7 @@ jobs:
             --warning-mode=none \
             -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=512m"
 
-      # ── 10. Rename artifacts ─────────────────────────────────────────────────
+      # ── 12. Rename artifacts ─────────────────────────────────────────────────
       - name: Rename artifacts
         run: |
           VERSION="${{ github.event.inputs.version_name }}"
@@ -133,7 +145,7 @@ jobs:
             echo "AAB: ${AAB_NAME}"
           fi
 
-      # ── 11. GitHub Release — Signed (latest, permanent) ──────────────────────
+      # ── 13. GitHub Release — Signed (latest, permanent) ──────────────────────
       - name: Create GitHub Release (Signed)
         if: env.SIGNED == 'true'
         uses: softprops/action-gh-release@v2
@@ -157,7 +169,7 @@ jobs:
           prerelease: false
           make_latest: true
 
-      # ── 11b. GitHub Release — Unsigned (pre-release, permanent) ──────────────
+      # ── 13b. GitHub Release — Unsigned (pre-release, permanent) ──────────────
       - name: Create GitHub Release (Unsigned)
         if: env.SIGNED == 'false'
         uses: softprops/action-gh-release@v2
@@ -182,7 +194,7 @@ jobs:
           prerelease: true
           make_latest: false
 
-      # ── 12. Clean everything ─────────────────────────────────────────────────
+      # ── 14. Clean everything ─────────────────────────────────────────────────
       - name: Clean caches and sensitive files
         if: always()
         run: |
@@ -193,7 +205,7 @@ jobs:
           rm -rf node_modules
           echo "All caches, build outputs, and sensitive files cleaned"
 
-      # ── 13. Summary ──────────────────────────────────────────────────────────
+      # ── 15. Summary ──────────────────────────────────────────────────────────
       - name: Build summary
         if: success()
         run: |
