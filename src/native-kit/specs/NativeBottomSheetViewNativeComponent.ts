@@ -18,7 +18,7 @@
  * native receiveCommand(view, commandId: String, args) override.
  */
 import type {HostComponent, ViewProps} from 'react-native';
-import type {DirectEventHandler, WithDefault} from 'react-native/Libraries/Types/CodegenTypes';
+import type {DirectEventHandler, Float, WithDefault} from 'react-native/Libraries/Types/CodegenTypes';
 import codegenNativeComponent from 'react-native/Libraries/Utilities/codegenNativeComponent';
 
 export type SheetState = 'hidden' | 'expanded';
@@ -31,7 +31,7 @@ export interface NativeProps extends ViewProps {
   initialState?: WithDefault<string, 'hidden'>;
   /** 0.1-1 — how much of the screen height counts as "expanded". 1
    *  (default) is full screen; e.g. 0.5 leaves the top half as backdrop. */
-  expandedHeightFraction?: WithDefault<number, 1.0>;
+  expandedHeightFraction?: WithDefault<Float, 1.0>;
   onSheetStateChange?: DirectEventHandler<SheetStateChangeEvent>;
 }
 
