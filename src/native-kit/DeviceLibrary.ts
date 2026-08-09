@@ -1,6 +1,6 @@
 import RNFS from 'react-native-fs';
 import {pickDirectory} from '@react-native-documents/picker';
-import NativeDeviceLibraryModule from './specs/DeviceLibraryModule';
+import NativeDeviceLibraryModule from './specs/NativeDeviceLibraryModule';
 
 export interface DeviceFolder {
   uri: string;

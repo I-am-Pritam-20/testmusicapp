@@ -1,5 +1,5 @@
 import {NativeEventEmitter} from 'react-native';
-import NativeInoWidgetBridge from './specs/InoWidgetBridge';
+import NativeInoWidgetBridge from './specs/NativeInoWidgetBridge';
 
 export type WidgetRepeatMode = 'off' | 'one' | 'all';
 

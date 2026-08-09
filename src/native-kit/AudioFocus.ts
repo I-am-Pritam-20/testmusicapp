@@ -1,5 +1,5 @@
 import {NativeEventEmitter} from 'react-native';
-import NativeAudioFocusModule from './specs/AudioFocusModule';
+import NativeAudioFocusModule from './specs/NativeAudioFocusModule';
 
 /**
  * Thin wrapper around AudioFocusModule (ported from inotuneoffline) — the

@@ -1,5 +1,5 @@
 import {NativeEventEmitter} from 'react-native';
-import NativeNetworkReachabilityModule from './specs/NetworkReachabilityModule';
+import NativeNetworkReachabilityModule from './specs/NativeNetworkReachabilityModule';
 
 export type ConnectivityStatus = 'online' | 'offline';
 

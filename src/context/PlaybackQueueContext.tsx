@@ -81,7 +81,7 @@ export function PlaybackQueueProvider({children}: {children: React.ReactNode}): 
       });
 
       WidgetBridge.getInitialAction().then(action => {
-        if (action === 'com.inotuneoffline.WIDGET_PLAY_RESUME') MusicPlayer.resume();
+        if (action === 'com.testmusicapp.WIDGET_PLAY_RESUME') MusicPlayer.resume();
       });
     }
     hydratedRef.current = true;
